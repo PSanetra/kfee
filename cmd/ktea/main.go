@@ -8,6 +8,7 @@ import (
 	"ktea/kadmin"
 	"ktea/kcadmin"
 	"ktea/kontext"
+	"ktea/serdes"
 	"ktea/sradmin"
 	"ktea/styles"
 	"ktea/ui"
@@ -363,6 +364,10 @@ func (m *Model) recreateAdminClients(cluster *config.Cluster) error {
 		}
 	}
 	m.ka = ka
+
+	protoDecoders := serdes.NewProtobufDecoders(cluster.Protobuf)
+	m.ktx.SetProtoDecoders(protoDecoders)
+	m.ka.SetProtoDecoders(protoDecoders)
 
 	if cluster.HasSchemaRegistry() {
 		m.sra = sradmin.New(m.ktx.Config().ActiveCluster().SchemaRegistry)

@@ -26,6 +26,7 @@ type Kadmin interface {
 	ConfigUpdater
 	TopicConfigLister
 	SraSetter
+	ProtoDecodersSetter
 	ClusterConfigLister
 	BrokerConfigLister
 	// Close releases the connections to the cluster.

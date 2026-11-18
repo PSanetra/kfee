@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"ktea/kadmin"
 	"ktea/kontext"
+	"ktea/serdes"
 	"ktea/styles"
 	"ktea/ui"
 	"ktea/ui/components/border"
@@ -41,6 +42,10 @@ type Model struct {
 	// source identifies the current consumption, see isStale
 	source  chan kadmin.ConsumerRecord
 	goToTop bool
+	// protoDecoders decode protobuf records, decodedVersion is the version of their
+	// configuration the records were decoded with
+	protoDecoders  *serdes.ProtobufDecoders
+	decodedVersion uint64
 }
 
 // isStale reports whether msg belongs to a consumption that has been replaced
@@ -125,6 +130,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	}
 
 	switch msg := msg.(type) {
+	case ui.RegainedFocusMsg:
+		m.redecodeIfDecodersChanged()
 	case tea.KeyPressMsg:
 		if msg.String() == "esc" {
 			m.cancelConsumption()
@@ -183,6 +190,22 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
+}
+
+// redecodeIfDecodersChanged decodes the records again when the protobuf decoder
+// configuration changed, e.g. in the record details page.
+func (m *Model) redecodeIfDecodersChanged() {
+	version := m.protoDecoders.Version()
+	if version == m.decodedVersion {
+		return
+	}
+	m.decodedVersion = version
+	// a new slice, as the records are shared with the record details page
+	records := make([]kadmin.ConsumerRecord, len(m.records))
+	for i, r := range m.records {
+		records[i] = r.RedecodeProtobuf(m.protoDecoders, m.readDetails.TopicName)
+	}
+	m.records = records
 }
 
 func (m *Model) recordForRow(row table.Row) kadmin.ConsumerRecord {
@@ -296,6 +319,7 @@ func (m *Model) Title() string {
 // modal and waits for it to be submitted instead of reading right away.
 func New(
 	reader kadmin.RecordReader,
+	protoDecoders *serdes.ProtobufDecoders,
 	readDetails kadmin.ReadDetails,
 	topic *kadmin.ListedTopic,
 	openSearch bool,
@@ -309,6 +333,7 @@ func New(
 	)
 	m.table = &t
 	m.reader = reader
+	m.protoDecoders = protoDecoders
 	m.cmdBar = NewConsumptionCmdbar()
 	m.readDetails = readDetails
 	m.topic = topic
@@ -336,6 +361,7 @@ func (m *Model) startReading(details kadmin.ReadDetails) tea.Cmd {
 
 	m.readDetails = details
 	m.readStarted = true
+	m.decodedVersion = m.protoDecoders.Version()
 	m.source = nil
 	m.records = nil
 	m.rows = nil

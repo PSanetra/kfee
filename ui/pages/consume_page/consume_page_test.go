@@ -21,6 +21,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Display empty topic message and adjusted shortcuts", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -43,6 +44,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Display adjusted shortcuts when consuming", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -61,6 +63,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Title contains topic", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{
 				TopicName:       "topic-name",
 				PartitionToRead: nil,
@@ -81,6 +84,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Display msg when no records found for given criteria", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -103,6 +107,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("null keys are rendered as <null>", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -137,6 +142,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Default sort by Timestamp Desc", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -179,6 +185,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("F2 Cancels consumption", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -222,6 +229,7 @@ func TestConsumptionPage(t *testing.T) {
 		t.Run("goes back to topics page when live consuming", func(t *testing.T) {
 			m, _ := New(
 				kadmin.NewMockKadmin(),
+				nil,
 				kadmin.ReadDetails{
 					TopicName:       "topic1",
 					PartitionToRead: []int{0},
@@ -270,6 +278,7 @@ func TestConsumptionPage(t *testing.T) {
 		t.Run("goes back to topics page when origin was topics page", func(t *testing.T) {
 			m, _ := New(
 				kadmin.NewMockKadmin(),
+				nil,
 				kadmin.ReadDetails{
 					TopicName:       "topic1",
 					PartitionToRead: []int{0},
@@ -319,6 +328,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("F3 shows sort bar", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -352,6 +362,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Sort by Key", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -415,6 +426,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Sort by Partitions", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -478,6 +490,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Sort by Offset", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -542,6 +555,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Sorting toggles shortcuts", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,
@@ -585,6 +599,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Enter load consume details page", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{
 				TopicName: "topic1",
 			},
@@ -644,7 +659,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("/ searches the topic for a key or value", func(t *testing.T) {
 		reader := &recordingReader{}
 		topic := &kadmin.ListedTopic{Name: "topic1", PartitionCount: 2}
-		m, cmd := New(reader, kadmin.NewDefaultReadDetails(topic), topic, false, tabs.NewMockTopicsTabNavigator())
+		m, cmd := New(reader, nil, kadmin.NewDefaultReadDetails(topic), topic, false, tabs.NewMockTopicsTabNavigator())
 		cmd()
 
 		m.Update(kadmin.ConsumerRecordReceived{Records: []kadmin.ConsumerRecord{{Key: "key-1"}}})
@@ -672,7 +687,7 @@ func TestConsumptionPage(t *testing.T) {
 
 	t.Run("ctrl+f opens the expanded search and esc closes it", func(t *testing.T) {
 		topic := &kadmin.ListedTopic{Name: "topic1", PartitionCount: 2}
-		m, _ := New(&recordingReader{}, kadmin.NewDefaultReadDetails(topic), topic, false, tabs.NewMockTopicsTabNavigator())
+		m, _ := New(&recordingReader{}, nil, kadmin.NewDefaultReadDetails(topic), topic, false, tabs.NewMockTopicsTabNavigator())
 
 		m.Update(tests.Ctrl('f'))
 		render := ansi.Strip(m.View(tests.NewKontext(), tests.Renderer))
@@ -689,7 +704,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("OpenSearch waits for the search before reading", func(t *testing.T) {
 		reader := &recordingReader{}
 		topic := &kadmin.ListedTopic{Name: "topic1", PartitionCount: 1}
-		m, cmd := New(reader, kadmin.NewDefaultReadDetails(topic), topic, true, tabs.NewMockTopicsTabNavigator())
+		m, cmd := New(reader, nil, kadmin.NewDefaultReadDetails(topic), topic, true, tabs.NewMockTopicsTabNavigator())
 
 		assert.Nil(t, cmd)
 		assert.Contains(t, ansi.Strip(m.View(tests.NewKontext(), tests.Renderer)), "Partitions")
@@ -702,6 +717,7 @@ func TestConsumptionPage(t *testing.T) {
 	t.Run("Select record with multiple keys on the same partition", func(t *testing.T) {
 		m, _ := New(
 			kadmin.NewMockKadmin(),
+			nil,
 			kadmin.ReadDetails{},
 			&kadmin.ListedTopic{},
 			false,

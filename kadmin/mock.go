@@ -3,6 +3,7 @@ package kadmin
 import (
 	"context"
 	"ktea/config"
+	"ktea/serdes"
 	"ktea/sradmin"
 
 	tea "charm.land/bubbletea/v2"
@@ -63,6 +64,9 @@ func (m MockKadmin) ListConfigs(topic string) tea.Msg {
 func (m MockKadmin) Close() error { return nil }
 
 func (m MockKadmin) SetSra(sra sradmin.Client) {
+}
+
+func (m MockKadmin) SetProtoDecoders(decoders *serdes.ProtobufDecoders) {
 }
 
 func (m MockKadmin) GetClusterConfig() tea.Msg {

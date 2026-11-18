@@ -56,6 +56,8 @@ type Cluster struct {
 	TLSConfig      TLSConfig             `yaml:"tls"`
 	// Kafka Connect clusters are optional, hence can be empty
 	KafkaConnectClusters []KafkaConnectConfig `yaml:"kafkaConnectClusters"`
+	// Protobuf decoding is optional, hence can be nil
+	Protobuf *ProtobufConfig `yaml:"protobuf,omitempty"`
 }
 
 func (c *Cluster) HasSchemaRegistry() bool {
@@ -171,6 +173,8 @@ func (c *Config) RegisterCluster(details RegistrationDetails) tea.Msg {
 		if c.Clusters[i].Name == details.Name {
 			isActive := c.Clusters[i].Active
 			cluster.Active = isActive
+			// protobuf decoders are not part of the cluster form, keep them
+			cluster.Protobuf = c.Clusters[i].Protobuf
 			c.Clusters[i] = cluster
 			if details.NewName != nil {
 				c.Clusters[i].Name = *details.NewName

@@ -77,6 +77,39 @@ clusters:
             password: "secret"
 ```
 
+### Protobuf decoding
+
+Records serialized as raw protobuf (without schema registry framing) can be decoded using your `.proto` files.
+This requires [`protoc`](https://protobuf.dev/installation/) to be installed.
+
+1. Open a record of the topic and press `p`.
+2. Enter the directory containing the `.proto` files. All `.proto` files in it and its subdirectories
+   are compiled with `protoc`, the directory is used as import path.
+3. Choose the message type of the record (press `/` to filter).
+4. Optionally choose a header of the record as discriminator and adjust its value regex,
+   the message type is then only used for records whose header matches.
+   Choose *None* to use the message type for all other records of the topic.
+
+Repeat these steps for every message type of the topic. Records are decoded to JSON, so searching works on the decoded values.
+Pressing `p` on a topic with a decoder also allows removing it.
+
+The decoders are stored per cluster in `config.yaml` and can be edited by hand as well (restart ktea afterwards):
+
+```yaml
+clusters:
+    - name: local
+      protobuf:
+          protoc: protoc                 # optional, defaults to protoc from the PATH
+          topics:
+              - topic: orders
+                protoDir: ~/src/protos
+                rules:                   # the first matching rule wins
+                    - messageType: acme.orders.v1.OrderCancelled
+                      header: type
+                      valueRegex: ^OrderCancelled$
+                    - messageType: acme.orders.v1.OrderCreated   # no header: used for all other records
+```
+
 ### Debug logging
 
 Debug logs are written when `ktea` is started with `--debug`:
@@ -244,7 +277,7 @@ to add one.
 
 - *Multi-Cluster Support*: Seamlessly connect to multiple Kafka clusters and switch between them with ease.
 - *Topic Management*: List, create, delete, and modify topics, including partition and offset details.
-- *Record Consumption*: Consume records in text, JSON, and **Avro** formats, with powerful search capabilities.
+- *Record Consumption*: Consume records in text, JSON, **Avro** and **Protobuf** formats, with powerful search capabilities.
 - *Consumer Group Insights*: Monitor consumer groups, view their members, and track offsets.
 - *Schema Registry Integration*: Browse, view, and register schemas effortlessly.
 - *Kafka Connect Integration*: Browse, view, and Update clusters.
@@ -252,7 +285,7 @@ to add one.
 ## Todo
 
 - Add more authentication methods
-- Add support for more message formats such as protobuf.
+- Add support for more message formats such as schema registry protobuf.
 - Add ACL management.
 - File based import/export of topics.
 - Add ability to delete specific schema versions.

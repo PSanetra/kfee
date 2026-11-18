@@ -4,6 +4,7 @@ import (
 	"errors"
 	"ktea/config"
 	"ktea/kadmin"
+	"ktea/kontext"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ func TestRecreateAdminClients(t *testing.T) {
 		created = append(created, ka)
 		return ka, nil
 	}
-	m := &Model{kaInstantiator: instantiator}
+	m := &Model{kaInstantiator: instantiator, ktx: kontext.New(nil)}
 	cluster := &config.Cluster{Name: "c"}
 
 	assert.NoError(t, m.recreateAdminClients(cluster))

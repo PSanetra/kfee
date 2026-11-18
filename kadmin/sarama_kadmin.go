@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"ktea/config"
+	"ktea/serdes"
 	"ktea/sradmin"
 	"os"
 	"time"
@@ -46,6 +47,8 @@ type SaramaKafkaAdmin struct {
 	config   *sarama.Config
 	producer sarama.SyncProducer
 	sra      sradmin.Client
+	// protoDecoders decode raw protobuf records, nil when none are configured
+	protoDecoders *serdes.ProtobufDecoders
 }
 
 type ConnCheckStartedMsg struct {

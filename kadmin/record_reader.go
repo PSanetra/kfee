@@ -263,6 +263,11 @@ func NewHeaderValue(data string) HeaderValue {
 	return HeaderValue{[]byte(data)}
 }
 
+// Bytes returns the raw header value.
+func (v HeaderValue) Bytes() []byte {
+	return v.data
+}
+
 func (v HeaderValue) String() string {
 	if utf8.Valid(v.data) {
 		return string(v.data)
@@ -307,16 +312,46 @@ type Header struct {
 }
 
 type ConsumerRecord struct {
-	Key       string
-	Payload   serdes.DesData
+	Key     string
+	Payload serdes.DesData
+	// RawValue is the record value as consumed, used to decode the record again
+	RawValue  []byte
 	Err       error
 	Partition int64
 	Offset    int64
 	Headers   []Header
 	Timestamp time.Time
+	// protobuf reports whether the record was handled by the protobuf decoders
+	protobuf bool
+}
+
+// RedecodeProtobuf decodes the record again with the given protobuf decoders, as needed after
+// their configuration changed. Records not handled by the decoders keep their payload, unless
+// they were handled by them before, then they fall back to plain text.
+func (record ConsumerRecord) RedecodeProtobuf(decoders *serdes.ProtobufDecoders, topic string) ConsumerRecord {
+	data, handled, err := decoders.Decode(topic, serdesHeaders(record.Headers), record.RawValue)
+	switch {
+	case handled:
+		record.Payload, record.Err, record.protobuf = data, err, true
+	case record.protobuf:
+		record.Payload, record.Err, record.protobuf = serdes.DesData{Value: string(record.RawValue)}, nil, false
+	}
+	return record
+}
+
+func serdesHeaders(headers []Header) []serdes.Header {
+	result := make([]serdes.Header, 0, len(headers))
+	for _, h := range headers {
+		result = append(result, serdes.Header{Key: h.Key, Value: h.Value.data})
+	}
+	return result
 }
 
 func (record *ConsumerRecord) PayloadType() string {
+	if record.Payload.MessageType != "" {
+		return "Protobuf"
+	}
+
 	// schema is not empty, so it's Avro
 	if record.Payload.Schema != "" {
 		return "Avro"
@@ -504,9 +539,12 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 							})
 						}
 
-						var desData serdes.DesData
+						var (
+							desData  serdes.DesData
+							protobuf bool
+						)
 						key := string(msg.Key)
-						desData, err = ka.deserialize(msg)
+						desData, protobuf, err = ka.deserialize(msg.Topic, headers, msg.Value)
 
 						if rd.Filter != nil && err == nil {
 							if !rd.Filter.Matches(key, desData.Value) {
@@ -520,11 +558,13 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 						consumerRecord := ConsumerRecord{
 							Key:       key,
 							Payload:   desData,
+							RawValue:  msg.Value,
 							Err:       err,
 							Partition: int64(msg.Partition),
 							Offset:    msg.Offset,
 							Headers:   headers,
 							Timestamp: msg.Timestamp,
+							protobuf:  protobuf,
 						}
 
 						if msgCount.Add(1) >= int64(rd.Limit) {
@@ -582,11 +622,18 @@ func noRecordsFound(offsets map[int]offsets) bool {
 	return true
 }
 
+// deserialize decodes the record value, protobuf reports whether it was handled by the protobuf decoders.
 func (ka *SaramaKafkaAdmin) deserialize(
-	msg *sarama.ConsumerMessage,
-) (serdes.DesData, error) {
+	topic string,
+	headers []Header,
+	value []byte,
+) (data serdes.DesData, protobuf bool, err error) {
+	if data, handled, err := ka.protoDecoders.Decode(topic, serdesHeaders(headers), value); handled {
+		return data, true, err
+	}
 	deserializer := serdes.NewAvroDeserializer(ka.sra)
-	return deserializer.Deserialize(msg.Value)
+	data, err = deserializer.Deserialize(value)
+	return data, false, err
 }
 
 type readingOffsets struct {

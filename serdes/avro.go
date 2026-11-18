@@ -17,6 +17,8 @@ type GoAvroDeserializer struct {
 type DesData struct {
 	Value  string
 	Schema string
+	// MessageType is the fully qualified protobuf message type, empty for other formats.
+	MessageType string
 }
 
 var ErrNoSchemaRegistry = errors.New("no schema registry configured")
@@ -51,7 +53,7 @@ func (d *GoAvroDeserializer) Deserialize(data []byte) (DesData, error) {
 			if err != nil {
 				return DesData{}, err
 			}
-			return DesData{string(jsonData), schema.Value}, nil
+			return DesData{Value: string(jsonData), Schema: schema.Value}, nil
 		}
 	} else {
 		return DesData{Value: string(data)}, nil

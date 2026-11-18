@@ -91,6 +91,7 @@ func (m *Model) ToConsumePage(msg tabs.ConsumePageDetails) tea.Cmd {
 	var cmd tea.Cmd
 	m.active, cmd = consume_page.New(
 		m.ka,
+		m.ktx.ProtoDecoders(),
 		msg.ReadDetails,
 		msg.Topic,
 		msg.OpenSearch,

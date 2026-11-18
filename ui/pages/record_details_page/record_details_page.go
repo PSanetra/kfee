@@ -5,6 +5,7 @@ import (
 	"ktea/config"
 	"ktea/kadmin"
 	"ktea/kontext"
+	"ktea/serdes"
 	"ktea/styles"
 	"ktea/ui"
 	"ktea/ui/clipper"
@@ -56,6 +57,10 @@ type Model struct {
 	schemaVp       *viewport.Model
 	border         *border.Model
 	navigator      tabs.TopicsTabNavigator
+	protoDecoders  *serdes.ProtobufDecoders
+	// compile compiles .proto files, replaceable for tests
+	compile    serdes.ProtoCompiler
+	protoModal *protoDecoderModal
 }
 
 type PayloadCopiedMsg struct {
@@ -87,13 +92,17 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 	mainView := m.mainView(width, height)
 	sidebarView := m.sidebarView(ktx, width, height)
 
-	return ui.JoinVertical(
+	content := ui.JoinVertical(
 		lipgloss.Top,
 		notifierCmdbarView,
 		lipgloss.NewStyle().Render(lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			m.border.View(mainView),
 			sidebarView)))
+	if m.protoModal != nil {
+		content = ui.Overlay(content, m.protoModal.View(ktx.WindowWidth), ktx.WindowWidth, ktx.AvailableHeight)
+	}
+	return content
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -107,10 +116,44 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	cmds = append(cmds, cmd)
 
 	switch msg := msg.(type) {
+	case protoDecoderClosedMsg:
+		m.protoModal = nil
+		return tea.Batch(cmds...)
+	case protoDecoderSavedMsg:
+		m.protoModal = nil
+		if cluster := m.config.ActiveCluster(); cluster != nil {
+			m.config.SetProtobufTopic(cluster.Name, msg.topic)
+		}
+		m.protoDecoders.SetTopic(msg.topic, msg.schema)
+		m.redecode()
+		m.notifierCmdbar.Notifier.ShowSuccessMsg("Protobuf decoder saved")
+		return tea.Batch(append(cmds, m.notifierCmdbar.Notifier.AutoHideCmd("record-details-page"))...)
+	case protoDecoderRemovedMsg:
+		m.protoModal = nil
+		if cluster := m.config.ActiveCluster(); cluster != nil {
+			m.config.DeleteProtobufTopic(cluster.Name, msg.topic)
+		}
+		m.protoDecoders.DeleteTopic(msg.topic)
+		m.redecode()
+		m.notifierCmdbar.Notifier.ShowSuccessMsg("Protobuf decoder removed")
+		return tea.Batch(append(cmds, m.notifierCmdbar.Notifier.AutoHideCmd("record-details-page"))...)
+	}
+
+	// the protobuf decoder modal captures all key presses while open
+	if m.protoModal != nil {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
+			return m.protoModal.Update(msg)
+		}
+		cmds = append(cmds, m.protoModal.Update(msg))
+	}
+
+	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "esc":
 			return m.navigator.ToCachedConsumptionPage()
+		case "p":
+			m.openProtoModal()
 		case "ctrl+n":
 			cmds = m.handleNavigateToNext(cmds)
 		case "ctrl+p":
@@ -338,11 +381,7 @@ func (m *Model) resetViews() {
 }
 
 func (m *Model) updateMetaInfo() {
-	key := m.record.Key
-	if key == "" {
-		key = "<null>"
-	}
-	m.metaInfo = fmt.Sprintf("key: %s\ntimestamp: %s", key, m.record.Timestamp.Format(time.UnixDate))
+	m.metaInfo = metaInfo(m.record)
 	if m.record.Err != nil {
 		m.err = m.record.Err
 		m.notifierCmdbar.Notifier.ShowError(m.record.Err)
@@ -350,6 +389,55 @@ func (m *Model) updateMetaInfo() {
 		m.err = nil
 		m.payload = ui.PrettyPrintJson(m.record.Payload.Value)
 	}
+}
+
+func metaInfo(record *kadmin.ConsumerRecord) string {
+	key := record.Key
+	if key == "" {
+		key = "<null>"
+	}
+	info := fmt.Sprintf("key: %s\ntimestamp: %s", key, record.Timestamp.Format(time.UnixDate))
+	if record.Payload.MessageType != "" {
+		info += "\ntype: " + record.Payload.MessageType
+	}
+	return info
+}
+
+func (m *Model) openProtoModal() {
+	var preselectedHeader string
+	if m.focus == headersViewFocus && len(m.record.Headers) > 0 {
+		preselectedHeader = m.record.Headers[m.headerKeyTable.Cursor()].Key
+	}
+	var protobufCfg *config.ProtobufConfig
+	if cluster := m.config.ActiveCluster(); cluster != nil {
+		protobufCfg = cluster.Protobuf
+	}
+	m.protoModal = newProtoDecoderModal(
+		m.topicName,
+		m.record,
+		protobufCfg,
+		m.protoDecoders.Protoc(),
+		m.compile,
+		preselectedHeader,
+	)
+}
+
+// redecode decodes the records again after the protobuf decoder configuration changed.
+func (m *Model) redecode() {
+	records := make([]kadmin.ConsumerRecord, len(m.records))
+	for i, r := range m.records {
+		records[i] = r.RedecodeProtobuf(m.protoDecoders, m.topicName)
+	}
+	m.records = records
+
+	if m.recordIndex >= 0 && m.recordIndex < len(m.records) {
+		m.loadRecordAtIndex(m.recordIndex, nil)
+		return
+	}
+	record := m.record.RedecodeProtobuf(m.protoDecoders, m.topicName)
+	m.record = &record
+	m.resetViews()
+	m.updateMetaInfo()
 }
 
 func (m *Model) updatedFocussedArea(msg tea.Msg, cmds []tea.Cmd) []tea.Cmd {
@@ -377,6 +465,11 @@ func (m *Model) updatedFocussedArea(msg tea.Msg, cmds []tea.Cmd) []tea.Cmd {
 }
 
 func (m *Model) Shortcuts() []statusbar.Shortcut {
+	if m.protoModal != nil {
+		return m.protoModal.Shortcuts()
+	}
+	protoShortcut := statusbar.Shortcut{Name: "Protobuf Decoder", Keybinding: "p"}
+
 	whatToCopy := "Header Value"
 	if m.focus == mainViewFocus {
 		if m.state == schemaView {
@@ -390,6 +483,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 			{"Toggle Headers/Content", "h/left/right"},
 			{"Go Back", "esc"},
 			{"Copy " + whatToCopy, "c"},
+			protoShortcut,
 		}
 
 		if len(m.records) > 1 {
@@ -411,6 +505,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 
 	return []statusbar.Shortcut{
 		{"Go Back", "esc"},
+		protoShortcut,
 	}
 }
 
@@ -451,13 +546,6 @@ func New(
 		notifierCmdBar.Notifier.ShowError(record.Err)
 	}
 
-	key := record.Key
-	if key == "" {
-		key = "<null>"
-	}
-
-	metaInfo := fmt.Sprintf("key: %s\ntimestamp: %s", key, record.Timestamp.Format(time.UnixDate))
-
 	cmdbar.BindNotificationHandler(notifierCmdBar, func(msg PayloadCopiedMsg, m *notifier.Model) (bool, tea.Cmd) {
 		m.ShowSuccessMsg("Payload copied")
 		return true, m.AutoHideCmd("record-details-page")
@@ -483,12 +571,7 @@ func New(
 		}
 	}
 
-	borderTitle := record.PayloadType()
-	b := border.New(
-		border.WithTabs(tabs...),
-		border.WithTitle("[ "+borderTitle+" ]"))
-
-	return &Model{
+	m := &Model{
 		record:         record,
 		records:        records,
 		recordIndex:    recordIndex,
@@ -498,12 +581,18 @@ func New(
 		headerRows:     headerRows,
 		payload:        payload,
 		err:            err,
-		metaInfo:       metaInfo,
+		metaInfo:       metaInfo(record),
 		clipWriter:     clipWriter,
 		notifierCmdbar: notifierCmdBar,
 		config:         ktx.Config(),
 		state:          recordView,
-		border:         b,
 		navigator:      navigator,
+		protoDecoders:  ktx.ProtoDecoders(),
+		compile:        serdes.CompileProtoDir,
 	}
+	// the payload type changes when navigating records or changing the protobuf decoder
+	m.border = border.New(
+		border.WithTabs(tabs...),
+		border.WithTitleFn(func() string { return "[ " + m.record.PayloadType() + " ]" }))
+	return m
 }
