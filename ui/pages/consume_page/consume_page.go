@@ -53,6 +53,8 @@ type Model struct {
 	decodedVersion uint64
 	// progress of searching the topic, nil when not searching
 	progress *kadmin.SearchProgress
+	// selected is the record selected by the user, nil until the cursor is moved
+	selected *rowKey
 }
 
 // isStale reports whether msg belongs to a consumption that has been replaced
@@ -101,6 +103,15 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		if m.goToTop && len(m.rows) > 0 {
 			m.table.GotoTop()
 			m.goToTop = false
+		}
+		// records arriving while reading are sorted in, keep the record selected by the user
+		if m.selected != nil {
+			for i, row := range m.rows {
+				if row[2] == m.selected.partition && row[3] == m.selected.offset {
+					m.table.SetCursor(i)
+					break
+				}
+			}
 		}
 		m.table.SetWidth(tableW - 2)
 		m.table.SetHeight(ktx.AvailableTableHeight())
@@ -173,7 +184,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				if len(m.records) > 0 {
 					selectedRow := m.rows[m.table.Cursor()]
 					selectedRecord := m.recordForRow(selectedRow)
-					m.consuming = false
 					recordIndex := m.recordIndexForRow(selectedRow)
 					return m.navigator.ToRecordDetailsPage(
 						tabs.RecordDetailsPageDetails{
@@ -213,9 +223,21 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		t, cmd := m.table.Update(msg)
 		m.table = &t
 		cmds = append(cmds, cmd)
+
+		// the user moved the cursor, keep that record selected while records arrive
+		if _, ok := msg.(tea.KeyPressMsg); ok {
+			if row := m.table.SelectedRow(); row != nil {
+				m.selected = &rowKey{partition: row[2], offset: row[3]}
+			}
+		}
 	}
 
 	return tea.Batch(cmds...)
+}
+
+// rowKey identifies the record of a table row.
+type rowKey struct {
+	partition, offset string
 }
 
 // redecodeIfDecodersChanged decodes the records again when the protobuf decoder
@@ -331,6 +353,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		return m.withCopyShortcut([]statusbar.Shortcut{
 			{"View Record", "enter"},
 			{"Stop consuming", "F2"},
+			{"New Search", "/"},
 			{"Go Back", "esc"},
 		})
 	} else if m.noRecordsAvailable || m.noRecordsFound {
@@ -423,6 +446,7 @@ func (m *Model) startReading(details kadmin.ReadDetails) tea.Cmd {
 	m.decodedVersion = m.protoDecoders.Version()
 	m.source = nil
 	m.progress = nil
+	m.selected = nil
 	m.records = nil
 	m.rows = nil
 	m.noRecordsAvailable = false

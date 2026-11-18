@@ -55,6 +55,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.topicsPage.Update(msg)
 	}
 
+	// records keep being read while a record is viewed
+	if m.consumptionPage != nil && m.active != m.consumptionPage {
+		switch msg.(type) {
+		case kadmin.ConsumerRecordReceived, kadmin.ConsumptionEndedMsg, kadmin.EmptyTopicMsg, kadmin.NoRecordsFound:
+			return m.consumptionPage.Update(msg)
+		}
+	}
+
 	cmd := m.active.Update(msg)
 
 	// always recreate the statusbar in case the active page might have changed

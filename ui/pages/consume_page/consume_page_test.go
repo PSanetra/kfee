@@ -15,6 +15,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConsumptionPage(t *testing.T) {
@@ -56,8 +57,50 @@ func TestConsumptionPage(t *testing.T) {
 		assert.Equal(t, []statusbar.Shortcut{
 			{"View Record", "enter"},
 			{"Stop consuming", "F2"},
+			{"New Search", "/"},
 			{"Go Back", "esc"},
 		}, m.Shortcuts())
+	})
+
+	t.Run("records can be browsed and opened while reading", func(t *testing.T) {
+		navigator := tabs.NewMockTopicsTabNavigator()
+		topic := &kadmin.ListedTopic{Name: "orders", PartitionCount: 1}
+		page, _ := New(kadmin.NewMockKadmin(), nil, kadmin.NewDefaultReadDetails(topic), topic, false, navigator)
+		m := page.(*Model)
+		now := time.Now()
+		m.Update(&kadmin.ReadingStartedMsg{})
+		m.Update(kadmin.ConsumerRecordReceived{Records: []kadmin.ConsumerRecord{
+			{Key: "k1", Offset: 1, Timestamp: now},
+			{Key: "k2", Offset: 2, Timestamp: now.Add(time.Second)},
+		}})
+		m.View(tests.NewKontext(), tests.Renderer)
+
+		// sorted by timestamp descending: k2, k1
+		m.Update(tests.Key(tea.KeyDown))
+		m.View(tests.NewKontext(), tests.Renderer)
+		assert.Equal(t, "k1", m.selectedRecord().Key)
+
+		// a newer record arriving above keeps k1 selected
+		m.Update(kadmin.ConsumerRecordReceived{Records: []kadmin.ConsumerRecord{
+			{Key: "k3", Offset: 3, Timestamp: now.Add(2 * time.Second)},
+		}})
+		m.View(tests.NewKontext(), tests.Renderer)
+		assert.Equal(t, "k1", m.selectedRecord().Key)
+
+		msgs := tests.ExecuteBatchCmd(m.Update(tests.Key(tea.KeyEnter)))
+		require.Len(t, msgs, 1)
+		assert.Equal(t, "k1", msgs[0].(tabs.ToRecordDetailsPageCalledMsg).Details.Record.Key)
+	})
+
+	t.Run("a new search can be started while reading", func(t *testing.T) {
+		topic := &kadmin.ListedTopic{Name: "orders", PartitionCount: 1}
+		page, _ := New(kadmin.NewMockKadmin(), nil, kadmin.NewDefaultReadDetails(topic), topic, false, tabs.NewMockTopicsTabNavigator())
+		m := page.(*Model)
+		m.Update(&kadmin.ReadingStartedMsg{})
+
+		m.Update(tests.Key('/'))
+
+		assert.NotNil(t, m.search)
 	})
 
 	t.Run("Title contains topic", func(t *testing.T) {

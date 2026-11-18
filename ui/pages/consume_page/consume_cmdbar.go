@@ -67,8 +67,10 @@ func (c *ConsumptionCmdBar) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+// IsFocussed reports whether the cmdbar takes the keyboard input. The consumption progress only
+// shows the state, so the records can be browsed while they are read.
 func (c *ConsumptionCmdBar) IsFocussed() bool {
-	return c.active != nil && c.active.IsFocussed()
+	return c.active != nil && c.active != c.notifierWidget && c.active.IsFocussed()
 }
 
 func (c *ConsumptionCmdBar) Shortcuts() []statusbar.Shortcut {
