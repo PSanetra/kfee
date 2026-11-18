@@ -24,6 +24,7 @@ import (
 
 type Model struct {
 	table              *table.Model
+	preview            *recordPreview
 	border             *border.Model
 	cmdBar             *ConsumptionCmdBar
 	cancelConsumption  context.CancelFunc
@@ -72,10 +73,15 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		views = append(views, styles.CenterText(ktx.WindowWidth, ktx.AvailableHeight).
 			Render("👀 No records found for the given criteria"))
 	} else {
-		keyCol := int(float64(ktx.WindowWidth) * 0.4)
-		tsCol := int(float64(ktx.WindowWidth) * 0.2)
-		PCol := int(float64(ktx.WindowWidth) * 0.2)
-		oCol := ktx.WindowWidth - keyCol - tsCol - PCol - 10
+		// preview the selected record next to the table when the window is wide enough
+		previewW := previewWidth(ktx.WindowWidth)
+		tableW := ktx.WindowWidth - previewW
+
+		keyCol := int(float64(tableW) * 0.4)
+		// fits "2006-01-02 15:04:05"
+		tsCol := max(int(float64(tableW)*0.2), 19)
+		PCol := int(float64(tableW) * 0.2)
+		oCol := tableW - keyCol - tsCol - PCol - 10
 		m.table.SetColumns([]table.Column{
 			{Title: m.cmdBar.sortByCBar.PrefixSortIcon("Key"), Width: keyCol},
 			{Title: m.cmdBar.sortByCBar.PrefixSortIcon("Timestamp"), Width: tsCol},
@@ -88,10 +94,16 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 			m.table.GotoTop()
 			m.goToTop = false
 		}
-		m.table.SetWidth(ktx.WindowWidth - 2)
+		m.table.SetWidth(tableW - 2)
 		m.table.SetHeight(ktx.AvailableTableHeight())
 
-		views = append(views, m.border.View(ktable.View(m.table)))
+		tableView := m.border.View(ktable.View(m.table))
+		if previewW > 0 {
+			tableView = lipgloss.JoinHorizontal(lipgloss.Top,
+				tableView,
+				m.preview.View(m.selectedRecord(), previewW, lipgloss.Height(tableView)))
+		}
+		views = append(views, tableView)
 	}
 
 	content := ui.JoinVertical(lipgloss.Top, views...)
@@ -206,6 +218,16 @@ func (m *Model) redecodeIfDecodersChanged() {
 		records[i] = r.RedecodeProtobuf(m.protoDecoders, m.readDetails.TopicName)
 	}
 	m.records = records
+}
+
+// selectedRecord returns the record of the table row under the cursor, nil if there is none.
+func (m *Model) selectedRecord() *kadmin.ConsumerRecord {
+	cursor := m.table.Cursor()
+	if cursor < 0 || cursor >= len(m.rows) {
+		return nil
+	}
+	record := m.recordForRow(m.rows[cursor])
+	return &record
 }
 
 func (m *Model) recordForRow(row table.Row) kadmin.ConsumerRecord {
@@ -332,6 +354,7 @@ func New(
 		table.WithStyles(styles.Table.Styles),
 	)
 	m.table = &t
+	m.preview = newRecordPreview()
 	m.reader = reader
 	m.protoDecoders = protoDecoders
 	m.cmdBar = NewConsumptionCmdbar()
