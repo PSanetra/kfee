@@ -17,6 +17,7 @@ nixpkgs when [nix](https://nixos.org) is installed.
 |------|---------|
 | `setup.tape` | shared settings (size, font, theme) and starting ktea, sourced by the other tapes |
 | `topics-page.tape` | the topics of the dev cluster |
+| `records-page.tape` | the records of a topic with the preview of the selected record |
 | `schema-page.tape` | an Avro schema in the schema registry |
 | `consumer-lag.tape` | the offsets and lag of the `generator` consumer group |
 | `config/` | the ktea configuration used for the screenshots |

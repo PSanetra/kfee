@@ -11,6 +11,9 @@ If you're a **k9s** user, you'll love **ktea**!
 **List Topics**
 ![topics-page.png](docs/screenshots/topics-page.png)
 
+**Browse Records with Preview**
+![records-page.png](docs/screenshots/records-page.png)
+
 **View AVRO Schema**
 ![schema-page.png](docs/screenshots/schema-page.png)
 

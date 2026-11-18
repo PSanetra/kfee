@@ -29,7 +29,7 @@ else
 	exit 1
 fi
 
-for tape in topics-page schema-page consumer-lag; do
+for tape in topics-page records-page schema-page consumer-lag; do
 	echo "Rendering $tape.png"
 	"${vhs[@]}" "docs/screenshots/$tape.tape"
 done
