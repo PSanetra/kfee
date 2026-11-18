@@ -132,8 +132,6 @@ func (m *Model) render() string {
 	}
 
 	var views []string
-	logoView := m.renderer.Render("   ___        \n |/ |  _   _.\n |\\ | (/_ (_|  " + version)
-	views = append(views, logoView)
 
 	tabsView := m.tabs.View(m.ktx, m.renderer)
 	views = append(views, tabsView)
@@ -446,6 +444,7 @@ func main() {
 	var (
 		debugParam      debugFlag
 		plainFontsParam bool
+		versionParam    bool
 	)
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage:\n  ktea [flags]\n  ktea confluent    add a Confluent Cloud cluster using the Confluent CLI\n\nFlags:\n")
@@ -453,7 +452,17 @@ func main() {
 	}
 	flag.Var(&debugParam, "debug", "enable debug logging: --debug writes ./debug.log, --debug=PATH writes to PATH\n(a directory gets PATH/debug.log); --debug PATH with a space is not supported")
 	flag.BoolVar(&plainFontsParam, "plain-fonts", false, "disable NerdFonts (if you see weird icons)")
+	flag.BoolVar(&versionParam, "version", false, "print the version and exit")
 	flag.Parse()
+
+	if versionParam {
+		if version == "" {
+			fmt.Println("ktea (development build)")
+		} else {
+			fmt.Println("ktea " + version)
+		}
+		return
+	}
 
 	plainFontParamSet := false
 	flag.Visit(func(f *flag.Flag) {
