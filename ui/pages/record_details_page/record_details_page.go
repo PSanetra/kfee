@@ -398,7 +398,11 @@ func metaInfo(record *kadmin.ConsumerRecord) string {
 		key = "<null>"
 	}
 	info := fmt.Sprintf("key: %s\ntimestamp: %s", key, record.Timestamp.Format(time.UnixDate))
-	if record.Payload.MessageType != "" {
+	switch record.Payload.MessageType {
+	case "":
+	case serdes.RawMessageType:
+		info += "\ntype: protobuf without schema\n(keys are field numbers)"
+	default:
 		info += "\ntype: " + record.Payload.MessageType
 	}
 	return info

@@ -68,9 +68,63 @@ func send(m *protoDecoderModal, msg tea.Msg) []tea.Msg {
 	return result
 }
 
+// newModal opens the modal and chooses decoding with .proto files.
 func newModal(t *testing.T, cfg *config.ProtobufConfig, compile serdes.ProtoCompiler) *protoDecoderModal {
 	t.Helper()
-	return newProtoDecoderModal("orders", protoRecord(), cfg, "protoc", compile, "")
+	m := newProtoDecoderModal("orders", protoRecord(), cfg, "protoc", compile, "")
+	if m.stage == stageMode {
+		send(m, tests.Key(tea.KeyEnter))
+	}
+	return m
+}
+
+func TestProtoDecoderModalWithoutSchema(t *testing.T) {
+	enter := tests.Key(tea.KeyEnter)
+	down := tests.Key(tea.KeyDown)
+
+	t.Run("configures a fallback rule without schema", func(t *testing.T) {
+		m := newProtoDecoderModal("orders", protoRecord(), nil, "protoc", nil, "")
+		assert.Contains(t, ansi.Strip(m.View(100)), "Without schema")
+
+		send(m, down)
+		send(m, enter)
+		assert.Equal(t, stageHeader, m.stage, "skips the proto directory and message type")
+		msgs := send(m, enter)
+
+		require.Len(t, msgs, 1)
+		saved := msgs[0].(protoDecoderSavedMsg)
+		assert.Equal(t, config.ProtobufTopicConfig{
+			Topic: "orders",
+			Rules: []config.ProtobufRule{{Raw: true}},
+		}, saved.topic)
+		assert.Nil(t, saved.schema)
+	})
+
+	t.Run("keeps the proto directory and adds a header rule", func(t *testing.T) {
+		existing := config.ProtobufTopicConfig{
+			Topic:    "orders",
+			ProtoDir: "/protos",
+			Rules:    []config.ProtobufRule{{MessageType: "acme.orders.v1.OrderCreated"}},
+		}
+		m := newProtoDecoderModal("orders", protoRecord(), &config.ProtobufConfig{Topics: []config.ProtobufTopicConfig{existing}}, "protoc", nil, "type")
+
+		send(m, enter) // add a rule
+		send(m, down)  // without schema
+		send(m, enter)
+		send(m, enter) // the preselected type header
+		assert.Equal(t, "^OrderCancelled$", m.values.regex)
+		msgs := send(m, enter)
+
+		require.Len(t, msgs, 1)
+		assert.Equal(t, config.ProtobufTopicConfig{
+			Topic:    "orders",
+			ProtoDir: "/protos",
+			Rules: []config.ProtobufRule{
+				{Raw: true, Header: "type", ValueRegex: "^OrderCancelled$"},
+				{MessageType: "acme.orders.v1.OrderCreated"},
+			},
+		}, msgs[0].(protoDecoderSavedMsg).topic)
+	})
 }
 
 func TestProtoDecoderModal(t *testing.T) {

@@ -112,6 +112,11 @@ This requires [`protoc`](https://protobuf.dev/installation/) to be installed.
 Repeat these steps for every message type of the topic. Records are decoded to JSON, so searching works on the decoded values.
 Pressing `p` on a topic with a decoder also allows removing it.
 
+Without `.proto` files, choose *Without schema* in the first step (no `protoc` needed). Records are then decoded like
+`protoc --decode_raw`: keys are field numbers and the types are guessed from the wire format, so varints are shown as
+integers (bools, enums and `sint` look the same), fixed32/fixed64 as unsigned integers and length-delimited fields
+as nested message, string or hex bytes. Such rules are stored as `raw: true` and can use a discriminator header too.
+
 The decoders are stored per cluster in `config.yaml` and can be edited by hand as well (restart ktea afterwards):
 
 ```yaml

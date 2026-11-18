@@ -22,6 +22,7 @@ type protoStage int
 
 const (
 	stageAction protoStage = iota
+	stageMode
 	stageDir
 	stageCompiling
 	stageMessageType
@@ -34,9 +35,15 @@ const (
 	actionRemove  = "remove"
 )
 
+const (
+	modeSchema = "schema"
+	modeRaw    = "raw"
+)
+
 // protoDecoderValues holds what the user entered, the huh fields write into it.
 type protoDecoderValues struct {
 	action      string
+	mode        string
 	dir         string
 	messageType string
 	header      string
@@ -98,14 +105,20 @@ func newProtoDecoderModal(
 		compile: compile,
 		values: protoDecoderValues{
 			action:      actionAddRule,
+			mode:        modeSchema,
 			dir:         initialProtoDir(topic, protobufCfg),
 			messageType: record.Payload.MessageType,
 			header:      preselectedHeader,
 		},
 	}
+	if record.Payload.MessageType == serdes.RawMessageType {
+		m.values.mode = modeRaw
+	}
 	if protobufCfg != nil {
 		for _, t := range protobufCfg.Topics {
-			m.recentDirs = append(m.recentDirs, t.ProtoDir)
+			if t.ProtoDir != "" {
+				m.recentDirs = append(m.recentDirs, t.ProtoDir)
+			}
 		}
 	}
 	if existing := protobufCfg.Topic(topic); existing != nil {
@@ -113,7 +126,7 @@ func newProtoDecoderModal(
 		m.existing = &cfg
 		m.toStage(stageAction)
 	} else {
-		m.toStage(stageDir)
+		m.toStage(stageMode)
 	}
 	return m
 }
@@ -121,11 +134,15 @@ func newProtoDecoderModal(
 // initialProtoDir prefers the topic's proto directory, then the one of another topic,
 // then the working directory.
 func initialProtoDir(topic string, cfg *config.ProtobufConfig) string {
-	if t := cfg.Topic(topic); t != nil {
+	if t := cfg.Topic(topic); t != nil && t.ProtoDir != "" {
 		return t.ProtoDir
 	}
-	if cfg != nil && len(cfg.Topics) > 0 {
-		return cfg.Topics[0].ProtoDir
+	if cfg != nil {
+		for _, t := range cfg.Topics {
+			if t.ProtoDir != "" {
+				return t.ProtoDir
+			}
+		}
 	}
 	if wd, err := os.Getwd(); err == nil {
 		return wd
@@ -149,6 +166,14 @@ func (m *protoDecoderModal) toStage(stage protoStage) {
 				huh.NewOption("Add or replace a rule", actionAddRule),
 				huh.NewOption("Remove the decoder of this topic", actionRemove),
 			)
+	case stageMode:
+		field = huh.NewSelect[string]().
+			Value(&v.mode).
+			Title("Decode with").
+			Options(
+				huh.NewOption(".proto files (field names and types)", modeSchema),
+				huh.NewOption("Without schema (field numbers only, types guessed)", modeRaw),
+			)
 	case stageDir:
 		m.form = nil
 		m.dirs = dirpicker.New(v.dir, ".proto", m.recentDirs)
@@ -171,14 +196,14 @@ func (m *protoDecoderModal) toStage(stage protoStage) {
 			Height(min(len(options)+3, 14)).
 			Options(options...)
 	case stageHeader:
-		options := []huh.Option[string]{huh.NewOption("None, use this message type for all other records", "")}
+		options := []huh.Option[string]{huh.NewOption("None, use this for all other records", "")}
 		for _, key := range m.headerKeys() {
 			options = append(options, huh.NewOption(fmt.Sprintf("%s = %s", key, truncate(m.headerValue(key), 40)), key))
 		}
 		field = huh.NewSelect[string]().
 			Value(&v.header).
 			Title("Discriminator header").
-			Description("Use the message type only when this header matches").
+			Description("Decode records " + m.decodedAs() + " only when this header matches").
 			Height(min(len(options)+3, 14)).
 			Options(options...)
 	case stageRegex:
@@ -189,11 +214,18 @@ func (m *protoDecoderModal) toStage(stage protoStage) {
 		field = huh.NewInput().
 			Value(&v.regex).
 			Title("Value regex of header " + v.header).
-			Description("Records whose " + v.header + " header matches are decoded as " + v.messageType)
+			Description("Records whose " + v.header + " header matches are decoded " + m.decodedAs())
 	}
 
 	m.form = huh.NewForm(huh.NewGroup(field)).WithTheme(styles.Huh).WithShowHelp(false)
 	m.form.Init()
+}
+
+func (m *protoDecoderModal) decodedAs() string {
+	if m.values.mode == modeRaw {
+		return "without schema"
+	}
+	return "as " + m.values.messageType
 }
 
 func (m *protoDecoderModal) hasMessageType(messageType string) bool {
@@ -225,8 +257,9 @@ func (m *protoDecoderModal) existingRegex() string {
 	if m.existing == nil {
 		return ""
 	}
+	raw := m.values.mode == modeRaw
 	for _, r := range m.existing.Rules {
-		if r.Header == m.values.header && r.MessageType == m.values.messageType {
+		if r.Header == m.values.header && r.Raw == raw && (raw || r.MessageType == m.values.messageType) {
 			return r.ValueRegex
 		}
 	}
@@ -361,6 +394,11 @@ func (m *protoDecoderModal) next() tea.Cmd {
 			topic := m.topic
 			return func() tea.Msg { return protoDecoderRemovedMsg{topic: topic} }
 		}
+		m.toStage(stageMode)
+	case stageMode:
+		if v.mode == modeRaw {
+			return m.afterDecoding()
+		}
 		m.toStage(stageDir)
 	case stageDir:
 		info, err := os.Stat(serdes.ExpandHome(v.dir))
@@ -379,11 +417,7 @@ func (m *protoDecoderModal) next() tea.Cmd {
 			m.err = "choose a message type"
 			return nil
 		}
-		if len(m.record.Headers) == 0 {
-			v.header = ""
-			return m.save()
-		}
-		m.toStage(stageHeader)
+		return m.afterDecoding()
 	case stageHeader:
 		if v.header == "" {
 			return m.save()
@@ -404,14 +438,30 @@ func (m *protoDecoderModal) next() tea.Cmd {
 	return nil
 }
 
+// afterDecoding continues with the discriminator header, if the record has headers.
+func (m *protoDecoderModal) afterDecoding() tea.Cmd {
+	if len(m.record.Headers) == 0 {
+		m.values.header = ""
+		return m.save()
+	}
+	m.toStage(stageHeader)
+	return nil
+}
+
 func (m *protoDecoderModal) save() tea.Cmd {
 	v := m.values
 	topicCfg := config.ProtobufTopicConfig{Topic: m.topic}
 	if m.existing != nil {
 		topicCfg = *m.existing
 	}
-	topicCfg.ProtoDir = v.dir
-	rule := config.ProtobufRule{MessageType: v.messageType}
+	var rule config.ProtobufRule
+	if v.mode == modeRaw {
+		// keeps the proto directory of other rules
+		rule.Raw = true
+	} else {
+		topicCfg.ProtoDir = v.dir
+		rule.MessageType = v.messageType
+	}
 	if v.header != "" {
 		rule.Header, rule.ValueRegex = v.header, v.regex
 	}

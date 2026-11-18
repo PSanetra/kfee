@@ -313,6 +313,11 @@ func (d *ProtobufDecoders) Decode(topic string, headers []Header, value []byte) 
 		return DesData{}, true, nil
 	}
 
+	if rule.Raw {
+		data, err = DecodeRaw(value)
+		return data, true, err
+	}
+
 	schema, err := t.compiledSchema(d.compile, d.protoc)
 	if err != nil {
 		return DesData{}, true, err

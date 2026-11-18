@@ -348,6 +348,9 @@ func serdesHeaders(headers []Header) []serdes.Header {
 }
 
 func (record *ConsumerRecord) PayloadType() string {
+	if record.Payload.MessageType == serdes.RawMessageType {
+		return "Protobuf (raw)"
+	}
 	if record.Payload.MessageType != "" {
 		return "Protobuf"
 	}

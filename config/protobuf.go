@@ -32,17 +32,21 @@ func (p *ProtobufConfig) Topic(topic string) *ProtobufTopicConfig {
 type ProtobufTopicConfig struct {
 	Topic string `yaml:"topic"`
 	// ProtoDir is the directory containing the .proto files, it is used as import path.
-	ProtoDir string `yaml:"protoDir"`
+	// It is not needed when all rules decode without schema.
+	ProtoDir string `yaml:"protoDir,omitempty"`
 	// Rules select the message type of a record, the first matching rule wins.
 	Rules []ProtobufRule `yaml:"rules"`
 }
 
-// ProtobufRule decodes records as MessageType. When Header is set, the rule only applies to
-// records having that header with a value matching ValueRegex, otherwise it applies to all records.
+// ProtobufRule decodes records as MessageType, or without schema when Raw is set. When Header
+// is set, the rule only applies to records having that header with a value matching ValueRegex,
+// otherwise it applies to all records.
 type ProtobufRule struct {
-	MessageType string `yaml:"messageType"`
-	Header      string `yaml:"header,omitempty"`
-	ValueRegex  string `yaml:"valueRegex,omitempty"`
+	MessageType string `yaml:"messageType,omitempty"`
+	// Raw decodes without schema, showing field numbers instead of names
+	Raw        bool   `yaml:"raw,omitempty"`
+	Header     string `yaml:"header,omitempty"`
+	ValueRegex string `yaml:"valueRegex,omitempty"`
 }
 
 func (r ProtobufRule) IsFallback() bool {
