@@ -105,11 +105,21 @@ func ThemesDir() string {
 	return filepath.Join(configDir(), "themes")
 }
 
+// configDir is $XDG_CONFIG_HOME/ktea when XDG_CONFIG_HOME is set to an absolute path,
+// ~/.config/ktea otherwise, also on macOS as common for command line tools.
 func configDir() string {
-	homeDir, err := os.UserHomeDir()
+	return resolveConfigDir(os.Getenv("XDG_CONFIG_HOME"), os.UserHomeDir)
+}
+
+func resolveConfigDir(xdgConfigHome string, homeDir func() (string, error)) string {
+	// relative paths are invalid according to the XDG Base Directory Specification
+	if filepath.IsAbs(xdgConfigHome) {
+		return filepath.Join(xdgConfigHome, "ktea")
+	}
+	home, err := homeDir()
 	if err != nil {
 		fmt.Println("Error getting home directory:", err)
 		os.Exit(-1)
 	}
-	return filepath.Join(homeDir, ".config", "ktea")
+	return filepath.Join(home, ".config", "ktea")
 }

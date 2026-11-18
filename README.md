@@ -46,7 +46,8 @@ All tables can be navigated using vi like bindings:
 
 ### Configuration
 
-The configuration is stored in two files in `~/.config/ktea/`:
+The configuration is stored in two files in `~/.config/ktea/`
+(`$XDG_CONFIG_HOME/ktea/` when `XDG_CONFIG_HOME` is set, on macOS too; all `~/.config/ktea` paths below follow it):
 
 - `config.yaml` holds the settings not related to connecting to clusters: theme, fonts and per cluster its name,
   color, whether it is active and its protobuf decoders.

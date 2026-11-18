@@ -283,7 +283,7 @@ func (s *Scheme) roles() map[string]*color.Color {
 	}
 }
 
-// themeFile is the format of ~/.config/ktea/themes/<name>.yaml.
+// themeFile is the format of <config dir>/themes/<name>.yaml, see config.ThemesDir.
 type themeFile struct {
 	Base   string            `yaml:"base"`
 	Syntax string            `yaml:"syntax"`
