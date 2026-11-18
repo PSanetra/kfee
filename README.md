@@ -100,7 +100,9 @@ Records serialized as raw protobuf (without schema registry framing) can be deco
 This requires [`protoc`](https://protobuf.dev/installation/) to be installed.
 
 1. Open a record of the topic and press `p`.
-2. Enter the directory containing the `.proto` files. All `.proto` files in it and its subdirectories
+2. Browse to the directory containing the `.proto` files and press `ctrl+s`. Every directory shows how many
+   `.proto` files it contains; `→`/`enter` opens a directory, `←` goes up, typing filters and directories used
+   for other topics are listed first (★). All `.proto` files in the chosen directory and its subdirectories
    are compiled with `protoc`, the directory is used as import path.
 3. Choose the message type of the record (press `/` to filter).
 4. Optionally choose a header of the record as discriminator and adjust its value regex,

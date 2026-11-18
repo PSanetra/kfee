@@ -76,6 +76,8 @@ func newModal(t *testing.T, cfg *config.ProtobufConfig, compile serdes.ProtoComp
 func TestProtoDecoderModal(t *testing.T) {
 	enter := tests.Key(tea.KeyEnter)
 	down := tests.Key(tea.KeyDown)
+	// chooses the directory currently browsed
+	useDir := tests.Ctrl('s')
 
 	dirCfg := func(dir string) *config.ProtobufConfig {
 		// the proto directory of another topic is prefilled
@@ -90,7 +92,7 @@ func TestProtoDecoderModal(t *testing.T) {
 		m := newModal(t, dirCfg(dir), compileOk)
 		assert.Contains(t, ansi.Strip(m.View(100)), "Proto directory")
 
-		send(m, enter)
+		send(m, useDir)
 		assert.Equal(t, stageMessageType, m.stage)
 		assert.Contains(t, ansi.Strip(m.View(100)), "acme.orders.v1.OrderCreated")
 
@@ -124,7 +126,7 @@ func TestProtoDecoderModal(t *testing.T) {
 		dir := t.TempDir()
 		m := newModal(t, dirCfg(dir), compileOk)
 
-		send(m, enter)
+		send(m, useDir)
 		send(m, down)
 		send(m, enter)
 		msgs := send(m, enter)
@@ -136,7 +138,7 @@ func TestProtoDecoderModal(t *testing.T) {
 
 	t.Run("rejects regexes not matching the record", func(t *testing.T) {
 		m := newModal(t, dirCfg(t.TempDir()), compileOk)
-		send(m, enter)
+		send(m, useDir)
 		send(m, enter)
 		send(m, down)
 		send(m, down)
@@ -155,19 +157,53 @@ func TestProtoDecoderModal(t *testing.T) {
 			return nil, errors.New("protoc failed: orders.proto:1:1: Syntax error")
 		})
 
-		send(m, enter)
+		send(m, useDir)
 
 		assert.Equal(t, stageDir, m.stage)
 		assert.Contains(t, ansi.Strip(m.View(100)), "Syntax error")
 	})
 
-	t.Run("rejects missing directories", func(t *testing.T) {
-		m := newModal(t, dirCfg(filepath.Join(t.TempDir(), "missing")), compileOk)
+	t.Run("starts at the closest existing directory", func(t *testing.T) {
+		dir := t.TempDir()
+		m := newModal(t, dirCfg(filepath.Join(dir, "missing", "protos")), compileOk)
 
+		assert.Equal(t, dir, m.dirs.Dir())
+	})
+
+	t.Run("browses into subdirectories", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "protos", "acme"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "protos", "acme", "orders.proto"), []byte(ordersProto), 0o644))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs"), 0o755))
+		m := newModal(t, dirCfg(dir), compileOk)
+		assert.Contains(t, ansi.Strip(m.View(100)), "protos/")
+		assert.Contains(t, ansi.Strip(m.View(100)), "1 .proto")
+
+		// typing filters, enter opens the highlighted directory
+		for _, r := range "pro" {
+			send(m, tests.Key(r))
+		}
 		send(m, enter)
+		assert.Equal(t, filepath.Join(dir, "protos"), m.dirs.Dir())
 
-		assert.Equal(t, stageDir, m.stage)
-		assert.Contains(t, m.err, "is not a directory")
+		send(m, tests.Key(tea.KeyLeft))
+		assert.Equal(t, dir, m.dirs.Dir())
+
+		// going up highlights the directory we came from
+		send(m, tests.Key(tea.KeyRight))
+		msgs := send(m, useDir)
+
+		assert.Empty(t, msgs)
+		assert.Equal(t, stageMessageType, m.stage)
+		assert.Equal(t, filepath.Join(dir, "protos"), m.values.dir)
+	})
+
+	t.Run("esc clears the directory filter before closing", func(t *testing.T) {
+		m := newModal(t, dirCfg(t.TempDir()), compileOk)
+		send(m, tests.Key('x'))
+
+		assert.Empty(t, send(m, tests.Key(tea.KeyEscape)))
+		assert.Equal(t, []tea.Msg{protoDecoderClosedMsg{}}, send(m, tests.Key(tea.KeyEscape)))
 	})
 
 	t.Run("removes an existing decoder", func(t *testing.T) {
@@ -182,7 +218,7 @@ func TestProtoDecoderModal(t *testing.T) {
 
 	t.Run("esc closes, except while filtering", func(t *testing.T) {
 		m := newModal(t, dirCfg(t.TempDir()), compileOk)
-		send(m, enter)
+		send(m, useDir)
 
 		send(m, tests.Key('/'))
 		assert.Empty(t, send(m, tests.Key(tea.KeyEscape)))

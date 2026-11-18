@@ -6,6 +6,7 @@ import (
 	"ktea/kadmin"
 	"ktea/serdes"
 	"ktea/styles"
+	"ktea/ui/components/dirpicker"
 	"ktea/ui/components/statusbar"
 	"os"
 	"regexp"
@@ -56,6 +57,9 @@ type protoDecoderModal struct {
 	schema   *serdes.ProtoSchema
 	form     *huh.Form
 	err      string
+	// dirs chooses the proto directory, recentDirs are the proto directories of other topics
+	dirs       *dirpicker.Model
+	recentDirs []string
 }
 
 // protoSchemaCompiledMsg is the result of compiling the .proto files of dir.
@@ -99,6 +103,11 @@ func newProtoDecoderModal(
 			header:      preselectedHeader,
 		},
 	}
+	if protobufCfg != nil {
+		for _, t := range protobufCfg.Topics {
+			m.recentDirs = append(m.recentDirs, t.ProtoDir)
+		}
+	}
 	if existing := protobufCfg.Topic(topic); existing != nil {
 		cfg := *existing
 		m.existing = &cfg
@@ -141,10 +150,9 @@ func (m *protoDecoderModal) toStage(stage protoStage) {
 				huh.NewOption("Remove the decoder of this topic", actionRemove),
 			)
 	case stageDir:
-		field = huh.NewInput().
-			Value(&v.dir).
-			Title("Proto directory").
-			Description("Searched recursively for .proto files, used as import path")
+		m.form = nil
+		m.dirs = dirpicker.New(v.dir, ".proto", m.recentDirs)
+		return
 	case stageCompiling:
 		m.form = nil
 		return
@@ -283,6 +291,9 @@ func (m *protoDecoderModal) Update(msg tea.Msg) tea.Cmd {
 		m.toStage(stageMessageType)
 		return nil
 	case tea.KeyPressMsg:
+		if m.stage == stageDir {
+			return m.updateDirs(msg)
+		}
 		m.err = ""
 		switch msg.String() {
 		case "esc":
@@ -304,6 +315,23 @@ func (m *protoDecoderModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	return m.updateForm(msg)
+}
+
+func (m *protoDecoderModal) updateDirs(msg tea.KeyPressMsg) tea.Cmd {
+	if msg.String() == "esc" {
+		// esc clears the filter before closing
+		if m.dirs.Filtering() {
+			m.dirs.ClearFilter()
+			return nil
+		}
+		return func() tea.Msg { return protoDecoderClosedMsg{} }
+	}
+	m.err = ""
+	if chosen := m.dirs.Update(msg); chosen {
+		m.values.dir = m.dirs.Dir()
+		return m.next()
+	}
+	return nil
 }
 
 func (m *protoDecoderModal) updateForm(msg tea.Msg) tea.Cmd {
@@ -398,9 +426,16 @@ func (m *protoDecoderModal) View(windowWidth int) string {
 	width := min(maxProtoModalWidth, max(20, windowWidth-8))
 
 	parts := []string{styles.Help.Title.Render("Protobuf decoder for " + m.topic), ""}
-	if m.form == nil {
+	switch {
+	case m.stage == stageDir:
+		parts = append(parts,
+			styles.Help.Key.Render("Proto directory"),
+			styles.Help.Footer.Render("Searched recursively for .proto files, used as import path"),
+			"",
+			m.dirs.View(width))
+	case m.form == nil:
 		parts = append(parts, "⏳ Compiling .proto files in "+m.values.dir+" …")
-	} else {
+	default:
 		m.form.WithWidth(width)
 		parts = append(parts, m.form.View())
 	}
@@ -414,6 +449,8 @@ func (m *protoDecoderModal) View(windowWidth int) string {
 
 func (m *protoDecoderModal) footer() string {
 	switch m.stage {
+	case stageDir:
+		return "↑↓ move · → open · ← up · type to filter · ctrl+s use folder · esc close"
 	case stageMessageType, stageHeader:
 		return "enter select · / filter · esc close"
 	case stageCompiling:
@@ -424,6 +461,14 @@ func (m *protoDecoderModal) footer() string {
 }
 
 func (m *protoDecoderModal) Shortcuts() []statusbar.Shortcut {
+	if m.stage == stageDir {
+		return []statusbar.Shortcut{
+			{Name: "Use This Folder", Keybinding: "C-s"},
+			{Name: "Open", Keybinding: "→/enter"},
+			{Name: "Up", Keybinding: "←"},
+			{Name: "Close", Keybinding: "esc"},
+		}
+	}
 	return []statusbar.Shortcut{
 		{Name: "Next", Keybinding: "enter"},
 		{Name: "Close", Keybinding: "esc"},
