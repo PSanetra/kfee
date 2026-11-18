@@ -119,7 +119,12 @@ func (w *Wizard) choose() (setup, error) {
 	fields = append(fields, huh.NewConfirm().
 		Title("Make it the active cluster?").
 		Value(&s.activate))
-	if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+	// one question at a time, shift+tab goes back
+	var groups []*huh.Group
+	for _, f := range fields {
+		groups = append(groups, huh.NewGroup(f))
+	}
+	if err := huh.NewForm(groups...).Run(); err != nil {
 		return s, formErr(err)
 	}
 	s.name = strings.TrimSpace(s.name)
