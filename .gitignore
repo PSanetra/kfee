@@ -11,6 +11,9 @@
 # kfee binary built in the repository root, e.g. go build -o kfee ./cmd/kfee
 /kfee
 
+# nix build output
+/result
+
 # Test binary, built with `go test -c`
 *.test
 

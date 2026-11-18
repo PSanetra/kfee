@@ -43,6 +43,31 @@ cd kfee
 CGO_ENABLED=0 go build -o kfee ./cmd/kfee
 ```
 
+### Nix
+
+The repository is a flake. Run kfee without installing it with `nix run github:PSanetra/kfee`, or add it to your
+NixOS configuration:
+
+```nix
+# flake.nix
+{
+  inputs.kfee.url = "github:PSanetra/kfee";
+
+  outputs = { nixpkgs, kfee, ... }: {
+    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+      modules = [
+        kfee.nixosModules.default
+        { programs.kfee.enable = true; }
+      ];
+    };
+  };
+}
+```
+
+`kfee.homeManagerModules.default` provides the same `programs.kfee.enable` option for Home Manager, and
+`kfee.overlays.default` adds `pkgs.kfee`. The package includes `protoc` for [Protobuf decoding](#protobuf-decoding),
+a `protoc` on your `PATH` takes precedence. Use `inputs.kfee.url = "github:PSanetra/kfee/v1.0.0"` to pin a release.
+
 kfee uses its own configuration directory, so it can be installed next to ktea. To take over a ktea configuration,
 copy `~/.config/ktea` to `~/.config/kfee` and move the connection settings to `connections.yaml`,
 see [Configuration](#configuration).
