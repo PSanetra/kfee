@@ -3,7 +3,7 @@ package sradmin
 import (
 	"charm.land/log/v2"
 	"context"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/compose"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -15,7 +15,7 @@ import (
 
 var ctx context.Context
 
-var schemaRegistryPort nat.Port
+var schemaRegistryPort network.Port
 
 func TestMain(m *testing.M) {
 	ctx = context.Background()
