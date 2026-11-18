@@ -32,12 +32,25 @@ type recordPreview struct {
 
 	cacheKey previewKey
 	rendered string
+
+	// copyStatus is shown in the title after copying the record until another record is selected
+	copyStatus    string
+	copyStatusKey previewKey
 }
 
 type previewKey struct {
 	partition, offset int64
 	value             string
 	syntax            string
+}
+
+func keyOf(record *kadmin.ConsumerRecord) previewKey {
+	return previewKey{
+		partition: record.Partition,
+		offset:    record.Offset,
+		value:     record.Payload.Value,
+		syntax:    styles.Current.Syntax,
+	}
 }
 
 func newRecordPreview() *recordPreview {
@@ -47,10 +60,24 @@ func newRecordPreview() *recordPreview {
 			if p.record == nil {
 				return border.Title("Preview", false)
 			}
-			return border.Title("Preview · "+p.record.PayloadType(), false)
+			title := "Preview · " + p.record.PayloadType()
+			if p.copyStatus != "" && p.copyStatusKey == keyOf(p.record) {
+				title += " · " + p.copyStatus
+			}
+			return border.Title(title, false)
 		}))
 	p.border.Focused = false
 	return p
+}
+
+// copied shows the result of copying the given record in the title.
+func (p *recordPreview) copied(record *kadmin.ConsumerRecord, err error) {
+	p.copyStatusKey = keyOf(record)
+	if err != nil {
+		p.copyStatus = "copy failed: " + err.Error()
+	} else {
+		p.copyStatus = "copied ✓"
+	}
 }
 
 // View renders the preview with the given outer width and height.
@@ -86,16 +113,16 @@ func (p *recordPreview) View(record *kadmin.ConsumerRecord, width, height int) s
 }
 
 func (p *recordPreview) payload(record *kadmin.ConsumerRecord) string {
-	key := previewKey{
-		partition: record.Partition,
-		offset:    record.Offset,
-		value:     record.Payload.Value,
-		syntax:    styles.Current.Syntax,
-	}
+	key := keyOf(record)
 	if key != p.cacheKey || p.rendered == "" {
 		p.cacheKey = key
 		// tabs have no defined width in the terminal
 		p.rendered = strings.ReplaceAll(ui.PrettyPrintJson(record.Payload.Value), "\t", "  ")
 	}
 	return p.rendered
+}
+
+// copyablePayload is the payload as copied to the clipboard, the same as in the record details page.
+func copyablePayload(record *kadmin.ConsumerRecord) string {
+	return ansi.Strip(ui.PrettyPrintJson(record.Payload.Value))
 }

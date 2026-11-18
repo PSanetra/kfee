@@ -1,9 +1,12 @@
 package consume_page
 
 import (
+	"errors"
 	"ktea/kadmin"
 	"ktea/serdes"
 	"ktea/tests"
+	"ktea/ui/clipper"
+	"ktea/ui/components/statusbar"
 	"ktea/ui/tabs"
 	"strings"
 	"testing"
@@ -57,5 +60,51 @@ func TestRecordPreview(t *testing.T) {
 
 		assert.NotContains(t, render, "Preview")
 		assert.NotContains(t, render, `"second-order"`)
+	})
+
+	t.Run("c copies the previewed record", func(t *testing.T) {
+		m := newPage()
+		var copied string
+		m.clipWriter = &clipper.MockClipper{WriteFunc: func(text string) error {
+			copied = text
+			return nil
+		}}
+		view(m, 160)
+		assert.Contains(t, m.Shortcuts(), statusbar.Shortcut{Name: "Copy Record", Keybinding: "c"})
+
+		m.Update(tests.Key('c'))
+
+		assert.JSONEq(t, `{"order":"second-order"}`, copied)
+		assert.NotContains(t, copied, "\x1b", "no color codes")
+		assert.Contains(t, view(m, 160), "Preview · Plain Json · copied ✓")
+
+		// the status belongs to the copied record only
+		m.Update(tests.Key(tea.KeyDown))
+		assert.NotContains(t, view(m, 160), "copied")
+	})
+
+	t.Run("shows copy errors", func(t *testing.T) {
+		m := newPage()
+		m.clipWriter = &clipper.MockClipper{WriteFunc: func(string) error { return errors.New("no clipboard") }}
+		view(m, 160)
+
+		m.Update(tests.Key('c'))
+
+		assert.Contains(t, view(m, 160), "copy failed: no clipboard")
+	})
+
+	t.Run("c does nothing without preview", func(t *testing.T) {
+		m := newPage()
+		copied := false
+		m.clipWriter = &clipper.MockClipper{WriteFunc: func(string) error {
+			copied = true
+			return nil
+		}}
+		view(m, 120)
+
+		m.Update(tests.Key('c'))
+
+		assert.False(t, copied)
+		assert.NotContains(t, m.Shortcuts(), statusbar.Shortcut{Name: "Copy Record", Keybinding: "c"})
 	})
 }

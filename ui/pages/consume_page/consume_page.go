@@ -8,6 +8,7 @@ import (
 	"ktea/serdes"
 	"ktea/styles"
 	"ktea/ui"
+	"ktea/ui/clipper"
 	"ktea/ui/components/border"
 	"ktea/ui/components/cmdbar"
 	"ktea/ui/components/statusbar"
@@ -25,6 +26,8 @@ import (
 type Model struct {
 	table              *table.Model
 	preview            *recordPreview
+	clipWriter         clipper.Writer
+	previewVisible     bool // whether the last render showed the preview
 	border             *border.Model
 	cmdBar             *ConsumptionCmdBar
 	cancelConsumption  context.CancelFunc
@@ -67,9 +70,11 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 	views = append(views, m.cmdBar.View(ktx, renderer))
 
 	if m.noRecordsAvailable {
+		m.previewVisible = false
 		views = append(views, styles.CenterText(ktx.WindowWidth, ktx.AvailableHeight).
 			Render("👀 Empty topic"))
 	} else if m.noRecordsFound {
+		m.previewVisible = false
 		views = append(views, styles.CenterText(ktx.WindowWidth, ktx.AvailableHeight).
 			Render("👀 No records found for the given criteria"))
 	} else {
@@ -98,7 +103,8 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		m.table.SetHeight(ktx.AvailableTableHeight())
 
 		tableView := m.border.View(ktable.View(m.table))
-		if previewW > 0 {
+		m.previewVisible = previewW > 0
+		if m.previewVisible {
 			tableView = lipgloss.JoinHorizontal(lipgloss.Top,
 				tableView,
 				m.preview.View(m.selectedRecord(), previewW, lipgloss.Height(tableView)))
@@ -150,6 +156,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.navigator.ToTopicsPage(false)
 		} else if (msg.String() == "/" || msg.String() == "ctrl+f") && !m.cmdBar.IsFocussed() {
 			m.search = newSearchModal(m.topic, m.readDetails, msg.String() == "ctrl+f")
+			return nil
+		} else if msg.String() == "c" && m.canCopy() {
+			record := m.selectedRecord()
+			m.preview.copied(record, m.clipWriter.Write(copyablePayload(record)))
 			return nil
 		} else if msg.String() == "f2" {
 			m.cancelConsumption()
@@ -218,6 +228,15 @@ func (m *Model) redecodeIfDecodersChanged() {
 		records[i] = r.RedecodeProtobuf(m.protoDecoders, m.readDetails.TopicName)
 	}
 	m.records = records
+}
+
+// canCopy reports whether the payload of the selected record is shown in the preview, so it can be copied.
+func (m *Model) canCopy() bool {
+	if !m.previewVisible || m.cmdBar.IsFocussed() || m.cmdBar.IsSorting() {
+		return false
+	}
+	record := m.selectedRecord()
+	return record != nil && record.Err == nil
 }
 
 // selectedRecord returns the record of the table row under the cursor, nil if there is none.
@@ -305,11 +324,11 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		return m.search.Shortcuts()
 	}
 	if m.consuming {
-		return []statusbar.Shortcut{
+		return m.withCopyShortcut([]statusbar.Shortcut{
 			{"View Record", "enter"},
 			{"Stop consuming", "F2"},
 			{"Go Back", "esc"},
-		}
+		})
 	} else if m.noRecordsAvailable || m.noRecordsFound {
 		return []statusbar.Shortcut{
 			{"Search", "/"},
@@ -324,13 +343,21 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		}
 	}
 
-	return []statusbar.Shortcut{
+	return m.withCopyShortcut([]statusbar.Shortcut{
 		{"View Record", "enter"},
 		{"Search", "/"},
 		{"Advanced Search", "C-f"},
 		{"Sort", "F3"},
 		{"Go Back", "esc"},
+	})
+}
+
+// withCopyShortcut adds the copy shortcut while the preview shows a payload.
+func (m *Model) withCopyShortcut(shortcuts []statusbar.Shortcut) []statusbar.Shortcut {
+	if !m.canCopy() {
+		return shortcuts
 	}
+	return append(shortcuts[:1:1], append([]statusbar.Shortcut{{Name: "Copy Record", Keybinding: "c"}}, shortcuts[1:]...)...)
 }
 
 func (m *Model) Title() string {
@@ -355,6 +382,7 @@ func New(
 	)
 	m.table = &t
 	m.preview = newRecordPreview()
+	m.clipWriter = clipper.New()
 	m.reader = reader
 	m.protoDecoders = protoDecoders
 	m.cmdBar = NewConsumptionCmdbar()
