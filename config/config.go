@@ -17,6 +17,8 @@ const (
 	AuthMethodSASLSCRAMSHA512 AuthMethod = "SASL_SCRAM_SHA512"
 )
 
+// The connection settings of clusters are stored in connections.yaml, the rest in config.yaml, see connections.go.
+
 type SASLConfig struct {
 	Username   string     `yaml:"username"`
 	Password   string     `yaml:"password"`

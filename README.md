@@ -46,36 +46,52 @@ All tables can be navigated using vi like bindings:
 
 ### Configuration
 
-All configuration is stored in `~/.config/ktea/config.yaml`
+The configuration is stored in two files in `~/.config/ktea/`:
+
+- `config.yaml` holds the settings not related to connecting to clusters: theme, fonts and per cluster its name,
+  color, whether it is active and its protobuf decoders.
+- `connections.yaml` holds the connection settings of the clusters: servers, credentials, TLS, Schema Registry and
+  Kafka Connect. It is only readable by your user (`0600`). If you use AI coding agents, consider denying them
+  access to this file, e.g. with a `Read(~/.config/ktea/connections.yaml)` deny rule in Claude Code.
 
 All cluster configurations can be managed through the TUI even the initial one.
 
-Example configuration file:
+Example configuration files:
 
 ```yaml
-plain-fonts: true # when nerd-fonts are not available, set to true
+# config.yaml
+plainFonts: true # when nerd-fonts are not available, set to true
 clusters:
     - name: local
       color: '#FF0000'
       active: true
-      servers:
-          - localhost:9093
-      sasl:
-          authMethod: NONE
-      tls:
-          enable: true
-          skipVerify: false
-          caCertPath: "docker/cert/ca.crt"
-      schema-registry:
-          url: http://localhost:8081
-          username: "user"
-          password: "secret"
-      kafka-connect-clusters:
-          - name: PRD
-            url: http://localhost:8083
-            username: "admin"
-            password: "secret"
 ```
+
+```yaml
+# connections.yaml
+clusters:
+    local:
+        servers:
+            - localhost:9093
+        sasl:
+            authMethod: NONE
+        tls:
+            enable: true
+            skipVerify: false
+            caCertPath: "docker/cert/ca.crt"
+        schemaRegistry:
+            url: http://localhost:8081
+            username: "user"
+            password: "secret"
+        kafkaConnectClusters:
+            - name: PRD
+              url: http://localhost:8083
+              username: "admin"
+              password: "secret"
+```
+
+Clusters only present in `connections.yaml` are added as well.
+Connection settings in `config.yaml` (as written by older ktea versions) are refused at startup, move them to `connections.yaml`.
 
 ### Protobuf decoding
 
@@ -271,7 +287,7 @@ ktea confluent
 
 to add a Confluent Cloud cluster. The wizard lets you choose the environment and Kafka cluster
 (offering to run `confluent login` when needed), creates an API key described as `ktea <date time>`
-and optionally a second one for the environment's Schema Registry, and saves the cluster to `config.yaml`.
+and optionally a second one for the environment's Schema Registry, and saves the cluster (its connection settings to `connections.yaml`).
 
 #### TLS support
 

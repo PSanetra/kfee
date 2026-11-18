@@ -269,7 +269,7 @@ func (w *Wizard) apply(s setup) error {
 		w.cfg.SwitchCluster(s.name)
 	}
 
-	fmt.Fprintf(w.out, "Saved cluster %q to %s\n", s.name, config.Path())
+	fmt.Fprintf(w.out, "Saved cluster %q, its connection settings and API keys are in %s (readable by you only)\n", s.name, config.ConnectionsPath())
 	fmt.Fprintln(w.out, "New API keys can take a minute or two to become active.")
 	return nil
 }
