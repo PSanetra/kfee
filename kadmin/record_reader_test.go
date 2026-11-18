@@ -2,8 +2,10 @@ package kadmin
 
 import (
 	"context"
+	"fmt"
 	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
 	"ktea/serdes"
 	"strconv"
@@ -589,7 +591,8 @@ func TestReadRecords(t *testing.T) {
 				}
 
 			assertRecords:
-				assert.Equal(t, []int{1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 31, 41, 51}, receivedRecords)
+				// searching most recent finds the newest matches first, the order is not relevant
+				assert.ElementsMatch(t, []int{1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 31, 41, 51}, receivedRecords)
 
 				// clean up
 				ka.DeleteTopic(topic)
@@ -727,7 +730,7 @@ func TestReadRecords(t *testing.T) {
 			}
 
 		assertRecords:
-			assert.Equal(t, []int{1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}, receivedRecords)
+			assert.ElementsMatch(t, []int{1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}, receivedRecords)
 
 			// clean up
 			ka.DeleteTopic(topic)
@@ -1352,7 +1355,122 @@ func TestFilterMatches(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.filter.Matches(tt.key, tt.value))
+			assert.Equal(t, tt.want, tt.filter.Matches(tt.key, tt.value, nil))
 		})
 	}
+
+	t.Run("term matches header values ignoring case", func(t *testing.T) {
+		headers := []Header{{Key: "trace-id", Value: NewHeaderValue("ABC-123")}}
+
+		assert.True(t, (&Filter{Term: "abc-1"}).Matches("k", "{}", headers))
+		assert.False(t, (&Filter{Term: "trace"}).Matches("k", "{}", headers), "header keys are not searched")
+	})
+}
+
+func TestFilterIsActive(t *testing.T) {
+	assert.False(t, (*Filter)(nil).IsActive())
+	assert.False(t, (&Filter{}).IsActive())
+	assert.False(t, (&Filter{KeyFilter: ContainsFilterType}).IsActive(), "without a term")
+	assert.False(t, (&Filter{KeyFilter: NoFilterType, KeySearchTerm: "x"}).IsActive())
+	assert.True(t, (&Filter{Term: "x"}).IsActive())
+	assert.True(t, (&Filter{KeyFilter: StartsWithFilterType, KeySearchTerm: "x"}).IsActive())
+	assert.True(t, (&Filter{ValueFilter: ContainsFilterType, ValueSearchTerm: "x"}).IsActive())
+}
+
+func TestSearchRecords(t *testing.T) {
+	topic := topicName()
+	msg := ka.CreateTopic(TopicCreationDetails{Name: topic, NumPartitions: 3, ReplicationFactor: 1}).(TopicCreationStartedMsg)
+	if _, ok := msg.AwaitCompletion().(TopicCreatedMsg); !ok {
+		t.Fatal("Unable to create topic")
+	}
+	defer ka.DeleteTopic(topic)
+
+	// 3000 records, 3 orders in partition 1 (key mod 3 == 1), the rest are pings
+	orders := map[int]bool{7: true, 1501: true, 2998: true}
+	for i := 0; i < 3000; i++ {
+		partition := i % 3
+		value := `{"type":"ping"}`
+		if orders[i] {
+			value = `{"type":"order","n":` + strconv.Itoa(i) + `}`
+		}
+		psm := ka.PublishRecord(&ProducerRecord{Topic: topic, Key: strconv.Itoa(i), Value: []byte(value), Partition: &partition})
+		select {
+		case err := <-psm.Err:
+			t.Fatal("Unable to publish", err)
+		case <-psm.Published:
+		}
+	}
+
+	search := func(rd ReadDetails) ([]ConsumerRecord, *SearchProgress) {
+		t.Helper()
+		rsm := ka.ReadRecords(context.Background(), rd).(*ReadingStartedMsg)
+		var records []ConsumerRecord
+		timeout := time.After(30 * time.Second)
+		for {
+			select {
+			case r, ok := <-rsm.ConsumerRecord:
+				if !ok {
+					return records, rsm.Progress
+				}
+				records = append(records, r)
+			case <-timeout:
+				t.Fatal("timed out searching records")
+			}
+		}
+	}
+	keys := func(records []ConsumerRecord) []string {
+		var k []string
+		for _, r := range records {
+			k = append(k, r.Key)
+		}
+		slices.Sort(k)
+		return k
+	}
+
+	for _, sp := range []StartPoint{MostRecent, Beginning} {
+		t.Run(fmt.Sprintf("finds matches outside the limit window with start point %d", sp), func(t *testing.T) {
+			records, progress := search(ReadDetails{
+				TopicName:       topic,
+				PartitionToRead: []int{0, 1, 2},
+				StartPoint:      sp,
+				Limit:           50,
+				Filter:          &Filter{Term: "order"},
+			})
+
+			assert.Equal(t, []string{"1501", "2998", "7"}, keys(records))
+			require.NotNil(t, progress)
+			assert.Equal(t, int64(3000), progress.Total())
+			assert.Equal(t, int64(3000), progress.Scanned())
+		})
+	}
+
+	t.Run("stops at the limit of matches, most recent first", func(t *testing.T) {
+		records, progress := search(ReadDetails{
+			TopicName:       topic,
+			PartitionToRead: []int{1},
+			StartPoint:      MostRecent,
+			Limit:           1,
+			Filter:          &Filter{Term: "order"},
+		})
+
+		// partition 1 holds all orders, searching backwards finds the newest first
+		assert.Equal(t, []string{"2998"}, keys(records))
+		assert.Less(t, progress.Scanned(), int64(1000), "stops searching after the match")
+	})
+
+	t.Run("reads without filter the limit only", func(t *testing.T) {
+		rsm := ka.ReadRecords(context.Background(), ReadDetails{
+			TopicName:       topic,
+			PartitionToRead: []int{0, 1, 2},
+			StartPoint:      MostRecent,
+			Limit:           30,
+		}).(*ReadingStartedMsg)
+
+		assert.Nil(t, rsm.Progress)
+		count := 0
+		for range rsm.ConsumerRecord {
+			count++
+		}
+		assert.Equal(t, 30, count)
+	})
 }

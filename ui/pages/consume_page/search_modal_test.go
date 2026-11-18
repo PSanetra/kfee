@@ -74,6 +74,22 @@ func TestSearchModalReadDetails(t *testing.T) {
 	})
 }
 
+func TestSearchModalShowsTheTypedTerm(t *testing.T) {
+	topic := &kadmin.ListedTopic{Name: "dev.finance.payment", PartitionCount: 3}
+
+	// huh hides the input when its description wraps, which made the term invisible
+	for _, expanded := range []bool{false, true} {
+		for _, width := range []int{80, 120, 200} {
+			m := newSearchModal(topic, kadmin.NewDefaultReadDetails(topic), expanded)
+			for _, r := range "abc" {
+				m.Update(tests.Key(r))
+			}
+
+			assert.Contains(t, ansi.Strip(m.View(width)), "> abc", "expanded %v, width %d", expanded, width)
+		}
+	}
+}
+
 func TestSearchModalTabs(t *testing.T) {
 	topic := &kadmin.ListedTopic{Name: "topic1", PartitionCount: 3}
 	m := newSearchModal(topic, kadmin.NewDefaultReadDetails(topic), true)

@@ -101,7 +101,8 @@ func (m *searchModal) buildForm() {
 		huh.NewInput().
 			Value(&v.term).
 			Title("Search").
-			Description("Matches records whose key or value contains the term (ignoring case)"),
+			// a single line: huh hides the input when the description wraps
+			Description("Key, value or a header contains the term (ignoring case)"),
 	}}}
 
 	if m.expanded {
@@ -154,6 +155,7 @@ func (m *searchModal) buildForm() {
 				huh.NewSelect[int]().
 					Value(&v.limit).
 					Title("Limit").
+					Description("Number of matches to find when searching").
 					Options(
 						huh.NewOption("50", 50),
 						huh.NewOption("500", 500),

@@ -21,6 +21,7 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/dustin/go-humanize"
 )
 
 type Model struct {
@@ -50,6 +51,8 @@ type Model struct {
 	// configuration the records were decoded with
 	protoDecoders  *serdes.ProtobufDecoders
 	decodedVersion uint64
+	// progress of searching the topic, nil when not searching
+	progress *kadmin.SearchProgress
 }
 
 // isStale reports whether msg belongs to a consumption that has been replaced
@@ -191,6 +194,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case *kadmin.ReadingStartedMsg:
 		m.source = msg.Source()
 		m.consuming = true
+		m.progress = msg.Progress
 		cmds = append(cmds, msg.AwaitRecord)
 	case kadmin.ConsumptionEndedMsg:
 		m.consuming = false
@@ -394,6 +398,10 @@ func New(
 	m.border = border.New(
 		border.WithInnerPaddingTop(),
 		border.WithTitleFn(func() string {
+			if m.progress != nil {
+				return border.KeyValueTitle("Matches", fmt.Sprintf(" %d · searched %s of %s",
+					len(m.rows), humanize.Comma(m.progress.Scanned()), humanize.Comma(m.progress.Total())), true)
+			}
 			return border.KeyValueTitle("Records", fmt.Sprintf(" %d", len(m.rows)), true)
 		}))
 
@@ -414,6 +422,7 @@ func (m *Model) startReading(details kadmin.ReadDetails) tea.Cmd {
 	m.readStarted = true
 	m.decodedVersion = m.protoDecoders.Version()
 	m.source = nil
+	m.progress = nil
 	m.records = nil
 	m.rows = nil
 	m.noRecordsAvailable = false

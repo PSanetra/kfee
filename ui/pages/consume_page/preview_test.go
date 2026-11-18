@@ -55,6 +55,16 @@ func TestRecordPreview(t *testing.T) {
 		}
 	})
 
+	t.Run("shows the search progress while searching", func(t *testing.T) {
+		m := newPage()
+
+		m.Update(&kadmin.ReadingStartedMsg{Progress: &kadmin.SearchProgress{}})
+
+		assert.Contains(t, view(m, 120), "Matches:  2 · searched 0 of 0")
+		m.startReading(kadmin.NewDefaultReadDetails(m.topic))
+		assert.Contains(t, view(m, 120), "Records:  0", "a new read without search shows the records again")
+	})
+
 	t.Run("hides the preview in narrow windows", func(t *testing.T) {
 		render := view(newPage(), 120)
 

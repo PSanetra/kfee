@@ -23,19 +23,43 @@ import (
 type FilterType string
 
 // Matches reports whether a record satisfies every criterion set on the filter.
-func (f *Filter) Matches(key, value string) bool {
+// The term matches the key, the value or a header value.
+func (f *Filter) Matches(key, value string, headers []Header) bool {
 	if f == nil {
 		return true
 	}
-	if f.Term != "" {
-		term := strings.ToLower(f.Term)
-		if !strings.Contains(strings.ToLower(key), term) &&
-			!strings.Contains(strings.ToLower(value), term) {
-			return false
-		}
+	if f.Term != "" && !containsTerm(strings.ToLower(f.Term), key, value, headers) {
+		return false
 	}
 	return f.KeyFilter.matches(key, f.KeySearchTerm) &&
 		f.ValueFilter.matches(value, f.ValueSearchTerm)
+}
+
+func containsTerm(term, key, value string, headers []Header) bool {
+	if strings.Contains(strings.ToLower(key), term) || strings.Contains(strings.ToLower(value), term) {
+		return true
+	}
+	for _, h := range headers {
+		if strings.Contains(strings.ToLower(h.Value.String()), term) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsActive reports whether the filter restricts the records, which makes reading
+// search the whole selected range instead of only reading the limit.
+func (f *Filter) IsActive() bool {
+	if f == nil {
+		return false
+	}
+	return f.Term != "" ||
+		(f.KeyFilter.isValid() && f.KeySearchTerm != "") ||
+		(f.ValueFilter.isValid() && f.ValueSearchTerm != "")
+}
+
+func (t FilterType) isValid() bool {
+	return t == ContainsFilterType || t == StartsWithFilterType
 }
 
 func (t FilterType) matches(value, term string) bool {
@@ -103,7 +127,21 @@ type ReadingStartedMsg struct {
 	NoRecordsFound chan bool
 	Err            chan error
 	CancelFunc     context.CancelFunc
+	// Progress counts the searched records when a filter is set, nil otherwise
+	Progress *SearchProgress
 }
+
+// SearchProgress counts the records searched for matches of a filter.
+type SearchProgress struct {
+	scanned atomic.Int64
+	total   atomic.Int64
+}
+
+// Scanned is the number of records searched so far.
+func (p *SearchProgress) Scanned() int64 { return p.scanned.Load() }
+
+// Total is the number of records to search at most.
+func (p *SearchProgress) Total() int64 { return p.total.Load() }
 
 func (m *ReadingStartedMsg) AwaitRecord() tea.Msg {
 	select {
@@ -418,10 +456,25 @@ func (ka *SaramaKafkaAdmin) ReadRecords(ctx context.Context, rd ReadDetails) tea
 		NoRecordsFound: make(chan bool, 1),
 		CancelFunc:     cancelFunc,
 	}
+	if rd.isSearch() {
+		startedMsg.Progress = &SearchProgress{}
+	}
 
 	go ka.doReadRecords(ctx, rd, startedMsg, cancelFunc)
 	return startedMsg
 }
+
+// isSearch reports whether the records are searched: with a filter, the whole selected range is
+// read until the limit of matching records is reached, instead of only reading the limit.
+func (rd ReadDetails) isSearch() bool {
+	return rd.StartPoint != Live && rd.Filter.IsActive()
+}
+
+const (
+	// searchInitialChunk and searchMaxChunk size the ranges searched backwards from the most recent record.
+	searchInitialChunk int64 = 500
+	searchMaxChunk     int64 = 20000
+)
 
 func (ka *SaramaKafkaAdmin) doReadRecords(
 	ctx context.Context,
@@ -455,6 +508,77 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 		return
 	}
 
+	if progress := startedMsg.Progress; progress != nil {
+		for _, p := range rd.PartitionToRead {
+			if off := offsets[p]; off.start >= 0 && off.end > off.start {
+				progress.total.Add(off.end - off.start)
+			}
+		}
+	}
+
+	// match decodes a consumed record and reports whether it matches the filter
+	match := func(msg *sarama.ConsumerMessage) (ConsumerRecord, bool) {
+		if progress := startedMsg.Progress; progress != nil {
+			progress.scanned.Add(1)
+		}
+
+		var headers []Header
+		for _, h := range msg.Headers {
+			headers = append(headers, Header{
+				string(h.Key),
+				HeaderValue{h.Value},
+			})
+		}
+
+		key := string(msg.Key)
+		desData, protobuf, err := ka.deserialize(msg.Topic, headers, msg.Value)
+
+		// non-matching records are dropped right away
+		if rd.Filter != nil && err == nil && !rd.Filter.Matches(key, desData.Value, headers) {
+			return ConsumerRecord{}, false
+		}
+
+		return ConsumerRecord{
+			Key:       key,
+			Payload:   desData,
+			RawValue:  msg.Value,
+			Err:       err,
+			Partition: int64(msg.Partition),
+			Offset:    msg.Offset,
+			Headers:   headers,
+			Timestamp: msg.Timestamp,
+			protobuf:  protobuf,
+		}, true
+	}
+
+	// send passes a record to the UI, it reports whether reading has to stop
+	send := func(consumerRecord ConsumerRecord) (stop bool) {
+		// partitions are read concurrently, only the record reaching the limit is still sent
+		if count := msgCount.Add(1); count >= rd.limit() {
+			if count == rd.limit() {
+				select {
+				case startedMsg.ConsumerRecord <- consumerRecord:
+				case <-ctx.Done():
+				}
+			}
+			return true
+		}
+
+		select {
+		case startedMsg.ConsumerRecord <- consumerRecord:
+			return false
+		case <-ctx.Done():
+			return true
+		}
+	}
+
+	process := func(msg *sarama.ConsumerMessage) (stop bool) {
+		if record, ok := match(msg); ok {
+			return send(record)
+		}
+		return false
+	}
+
 	emptyTopic := true
 
 	log.Debug("Starting to read records",
@@ -467,6 +591,18 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 		if offsets[partition].end != offsets[partition].start || rd.StartPoint == Live {
 
 			emptyTopic = false
+
+			if rd.isSearch() && rd.StartPoint == MostRecent {
+				wg.Go(func() {
+					err := ka.searchBackwards(ctx, client, rd.TopicName, int32(partition), offsets[partition], match, send, func() bool {
+						return msgCount.Load() >= rd.limit()
+					})
+					if err != nil {
+						sendErr(ctx, startedMsg.Err, err)
+					}
+				})
+				continue
+			}
 
 			wg.Go(func() {
 				readingOffsets := ka.determineReadingOffsets(rd, offsets[partition])
@@ -544,61 +680,7 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 						}
 
 						reachedEnd := !live && msg.Offset >= readingOffsets.end
-
-						var headers []Header
-						for _, h := range msg.Headers {
-							headers = append(headers, Header{
-								string(h.Key),
-								HeaderValue{h.Value},
-							})
-						}
-
-						var (
-							desData  serdes.DesData
-							protobuf bool
-						)
-						key := string(msg.Key)
-						desData, protobuf, err = ka.deserialize(msg.Topic, headers, msg.Value)
-
-						if rd.Filter != nil && err == nil {
-							if !rd.Filter.Matches(key, desData.Value) {
-								if reachedEnd {
-									return
-								}
-								continue
-							}
-						}
-
-						consumerRecord := ConsumerRecord{
-							Key:       key,
-							Payload:   desData,
-							RawValue:  msg.Value,
-							Err:       err,
-							Partition: int64(msg.Partition),
-							Offset:    msg.Offset,
-							Headers:   headers,
-							Timestamp: msg.Timestamp,
-							protobuf:  protobuf,
-						}
-
-						// partitions are read concurrently, only the record reaching the limit is still sent
-						if count := msgCount.Add(1); count >= rd.limit() {
-							if count == rd.limit() {
-								select {
-								case startedMsg.ConsumerRecord <- consumerRecord:
-								case <-ctx.Done():
-								}
-							}
-							return
-						}
-
-						select {
-						case startedMsg.ConsumerRecord <- consumerRecord:
-						case <-ctx.Done():
-							return
-						}
-
-						if reachedEnd {
+						if process(msg) || reachedEnd {
 							return
 						}
 					}
@@ -671,6 +753,13 @@ func (ka *SaramaKafkaAdmin) determineReadingOffsets(
 
 	var startOffset int64
 	var endOffset int64
+	// searching reads the whole range, the limit applies to the matching records
+	if rd.isSearch() {
+		return readingOffsets{
+			start: offsets.start,
+			end:   offsets.newest(),
+		}
+	}
 	// at least one record per partition, the total is capped by the limit while reading
 	numberOfRecordsPerPart := max(rd.limit()/int64(len(rd.PartitionToRead)), 1)
 	if rd.StartPoint == Beginning {
