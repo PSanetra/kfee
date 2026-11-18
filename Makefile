@@ -7,7 +7,7 @@ SSL_STACK     := $(COMPOSE) -p ktea-ssl -f docker/docker-compose-ssl.yml
 SCRAM_STACK   := $(COMPOSE) -p ktea-scram -f docker/docker-compose-scram.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-ssl up-scram down clean seed logs generate run run-debug
+.PHONY: help up up-ssl up-scram down clean seed logs generate run run-debug screenshots
 
 help: ## List the goals
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -53,3 +53,6 @@ run: ## Run ktea with the dev tag (simulated slow network)
 
 run-debug: ## Run ktea with the dev tag and --debug (writes debug.log)
 	go run -tags dev ./cmd/ktea --debug
+
+screenshots: ## Regenerate the README screenshots with VHS (needs make up && make generate)
+	./docs/screenshots/screenshots.sh

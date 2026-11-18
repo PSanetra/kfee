@@ -9,13 +9,13 @@ ktea is a tool designed to simplify and accelerate interactions with Kafka clust
 If you're a **k9s** user, you'll love **ktea**!
 
 **List Topics**
-![topics-page.png](topics-page.png)
+![topics-page.png](docs/screenshots/topics-page.png)
 
 **View AVRO Schema**
-![schema-page.png](schema-page.png)
+![schema-page.png](docs/screenshots/schema-page.png)
 
 **View Consumer Lag**
-![consumer-lag.png](consumer-lag.png)
+![consumer-lag.png](docs/screenshots/consumer-lag.png)
 
 ## Installation
 
@@ -358,6 +358,10 @@ or `make run-debug` to also write a `debug.log`
 
 > Note: running the tui with dev build tag will simulate an artificial slow network by sleeping for 2 seconds when doing network IO. This way the loaders and spinners can be visually asserted.
 > 
+
+### Screenshots
+
+The screenshots above are generated, see [docs/screenshots](docs/screenshots/README.md).
 
 ### Run tests
 

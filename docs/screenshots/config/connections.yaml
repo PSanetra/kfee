@@ -1,0 +1,9 @@
+# the local dev cluster started with `make up`, no credentials
+clusters:
+    local:
+        servers:
+            - localhost:9092
+        sasl:
+            authMethod: NONE
+        schemaRegistry:
+            url: http://localhost:8081

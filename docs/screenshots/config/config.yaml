@@ -1,0 +1,4 @@
+clusters:
+    - name: local
+      color: '#00FF00'
+      active: true
