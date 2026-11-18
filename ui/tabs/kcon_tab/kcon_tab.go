@@ -3,14 +3,14 @@ package kcon_tab
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"ktea/config"
-	"ktea/kcadmin"
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
-	"ktea/ui/pages"
-	"ktea/ui/pages/kcon_clusters_page"
-	"ktea/ui/pages/kcon_page"
+	"kfee/config"
+	"kfee/kcadmin"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
+	"kfee/ui/pages"
+	"kfee/ui/pages/kcon_clusters_page"
+	"kfee/ui/pages/kcon_page"
 	"net/http"
 )
 

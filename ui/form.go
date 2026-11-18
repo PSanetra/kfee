@@ -2,7 +2,7 @@ package ui
 
 import (
 	"charm.land/huh/v2"
-	"ktea/styles"
+	"kfee/styles"
 )
 
 // RenderForm renders f, keeping it visible after submission.

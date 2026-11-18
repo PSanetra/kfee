@@ -4,7 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"ktea/config"
+	"kfee/config"
 	"sort"
 	"testing"
 )

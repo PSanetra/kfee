@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/riferrei/srclient"
-	"ktea/config"
+	"kfee/config"
 	"net/http"
 	"os"
 	"sync"

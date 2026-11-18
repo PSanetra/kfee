@@ -2,7 +2,7 @@ package sradmin
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"ktea/config"
+	"kfee/config"
 )
 
 type MockSrAdmin struct {

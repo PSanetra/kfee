@@ -3,13 +3,13 @@ package cgroups_tab
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"ktea/kadmin"
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
-	"ktea/ui/pages"
-	"ktea/ui/pages/cgroups_page"
-	"ktea/ui/pages/cgroups_topics_page"
+	"kfee/kadmin"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
+	"kfee/ui/pages"
+	"kfee/ui/pages/cgroups_page"
+	"kfee/ui/pages/cgroups_topics_page"
 )
 
 type Model struct {

@@ -33,7 +33,7 @@ type Scheme struct {
 	Active       color.Color // active border tab
 	Success      color.Color
 	Error        color.Color
-	// Background, when set, paints the whole terminal while ktea runs and
+	// Background, when set, paints the whole terminal while kfee runs and
 	// Text becomes the terminal's default text color. Nil keeps the terminal's colors.
 	Background color.Color
 	Syntax     string // chroma style used to highlight record payloads

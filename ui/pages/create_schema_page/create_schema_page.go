@@ -5,14 +5,14 @@ import (
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"fmt"
-	"ktea/kontext"
-	"ktea/sradmin"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/cmdbar"
-	"ktea/ui/components/notifier"
-	"ktea/ui/components/statusbar"
-	"ktea/ui/tabs"
+	"kfee/kontext"
+	"kfee/sradmin"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/cmdbar"
+	"kfee/ui/components/notifier"
+	"kfee/ui/components/statusbar"
+	"kfee/ui/tabs"
 )
 
 type state int

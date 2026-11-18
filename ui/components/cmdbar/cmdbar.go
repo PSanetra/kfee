@@ -2,9 +2,9 @@ package cmdbar
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
 )
 
 const BorderedPadding = 2

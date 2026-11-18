@@ -24,7 +24,7 @@ func TestResolveDebugLogPath(t *testing.T) {
 		{"existing directory", dir, filepath.Join(dir, "debug.log")},
 		{"path with trailing separator", missingDir, filepath.Join(dir, "missing", "debug.log")},
 		{"existing file", existingFile, existingFile},
-		{"new file in existing directory", filepath.Join(dir, "ktea.log"), filepath.Join(dir, "ktea.log")},
+		{"new file in existing directory", filepath.Join(dir, "kfee.log"), filepath.Join(dir, "kfee.log")},
 	}
 
 	for _, tt := range tests {

@@ -1,10 +1,10 @@
 package cgroups_tab
 
 import (
-	"ktea/config"
-	"ktea/kadmin"
-	"ktea/tests"
-	"ktea/ui/components/statusbar"
+	"kfee/config"
+	"kfee/kadmin"
+	"kfee/tests"
+	"kfee/ui/components/statusbar"
 	"strings"
 	"testing"
 

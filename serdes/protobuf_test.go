@@ -2,7 +2,7 @@ package serdes
 
 import (
 	"encoding/json"
-	"ktea/config"
+	"kfee/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -144,7 +144,7 @@ func TestCompileProtoDir(t *testing.T) {
 	})
 
 	t.Run("reports missing protoc", func(t *testing.T) {
-		_, err := CompileProtoDir("ktea-no-such-protoc", protoDir(t))
+		_, err := CompileProtoDir("kfee-no-such-protoc", protoDir(t))
 
 		assert.ErrorContains(t, err, "not found, install protoc")
 	})

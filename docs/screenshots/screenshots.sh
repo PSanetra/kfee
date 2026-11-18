@@ -11,14 +11,14 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 # without the dev tag, so there is no simulated latency
-CGO_ENABLED=0 go build -o "$work/ktea" ./cmd/ktea
+CGO_ENABLED=0 go build -o "$work/kfee" ./cmd/kfee
 
-# an isolated config, the user's ~/.config/ktea is not used
-mkdir -p "$work/config/ktea"
-install -m 644 docs/screenshots/config/config.yaml "$work/config/ktea/config.yaml"
-install -m 600 docs/screenshots/config/connections.yaml "$work/config/ktea/connections.yaml"
+# an isolated config, the user's ~/.config/kfee is not used
+mkdir -p "$work/config/kfee"
+install -m 644 docs/screenshots/config/config.yaml "$work/config/kfee/config.yaml"
+install -m 600 docs/screenshots/config/connections.yaml "$work/config/kfee/connections.yaml"
 export XDG_CONFIG_HOME="$work/config"
-export KTEA_BIN="$work/ktea"
+export KFEE_BIN="$work/kfee"
 
 if command -v vhs >/dev/null; then
 	vhs=(vhs)

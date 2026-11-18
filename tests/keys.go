@@ -2,8 +2,8 @@ package tests
 
 import (
 	"fmt"
-	"ktea/ui"
-	"ktea/ui/pages"
+	"kfee/ui"
+	"kfee/ui/pages"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"

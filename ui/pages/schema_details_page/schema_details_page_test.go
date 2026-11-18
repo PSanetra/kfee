@@ -4,12 +4,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
-	"ktea/kontext"
-	"ktea/sradmin"
-	"ktea/tests"
-	"ktea/ui/clipper"
-	"ktea/ui/components/notifier"
-	"ktea/ui/tabs"
+	"kfee/kontext"
+	"kfee/sradmin"
+	"kfee/tests"
+	"kfee/ui/clipper"
+	"kfee/ui/components/notifier"
+	"kfee/ui/tabs"
 	"testing"
 )
 

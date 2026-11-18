@@ -2,8 +2,8 @@ package kadmin
 
 import (
 	"context"
-	"ktea/config"
-	"ktea/styles"
+	"kfee/config"
+	"kfee/styles"
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go/modules/redpanda"

@@ -2,8 +2,8 @@ package tabs
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"ktea/kadmin"
-	"ktea/sradmin"
+	"kfee/kadmin"
+	"kfee/sradmin"
 )
 
 type TopicsTabNavigator interface {

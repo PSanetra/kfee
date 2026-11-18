@@ -2,10 +2,10 @@ package statusbar_test
 
 import (
 	"github.com/charmbracelet/x/ansi"
-	"ktea/config"
-	"ktea/styles"
-	"ktea/tests"
-	"ktea/ui/components/statusbar"
+	"kfee/config"
+	"kfee/styles"
+	"kfee/tests"
+	"kfee/ui/components/statusbar"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

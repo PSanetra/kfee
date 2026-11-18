@@ -7,9 +7,9 @@ import (
 	"charm.land/huh/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
-	"ktea/styles"
-	"ktea/tests"
-	"ktea/ui"
+	"kfee/styles"
+	"kfee/tests"
+	"kfee/ui"
 )
 
 func submittedForm(t *testing.T) *huh.Form {

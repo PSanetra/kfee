@@ -77,9 +77,9 @@ type APIKey struct {
 	Secret string `json:"api_secret"`
 }
 
-// KeyDescription is the description of API keys created by ktea.
+// KeyDescription is the description of API keys created by kfee.
 func KeyDescription(now time.Time) string {
-	return "ktea " + now.Format("2006-01-02 15:04:05")
+	return "kfee " + now.Format("2006-01-02 15:04:05")
 }
 
 // CLI calls the Confluent CLI.

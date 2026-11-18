@@ -2,12 +2,12 @@ package consume_page
 
 import (
 	"errors"
-	"ktea/kadmin"
-	"ktea/serdes"
-	"ktea/tests"
-	"ktea/ui/clipper"
-	"ktea/ui/components/statusbar"
-	"ktea/ui/tabs"
+	"kfee/kadmin"
+	"kfee/serdes"
+	"kfee/tests"
+	"kfee/ui/clipper"
+	"kfee/ui/components/statusbar"
+	"kfee/ui/tabs"
 	"strings"
 	"testing"
 	"time"

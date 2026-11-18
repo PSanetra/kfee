@@ -3,7 +3,7 @@ package kcadmin
 import (
 	"github.com/stretchr/testify/assert"
 	"io"
-	"ktea/config"
+	"kfee/config"
 	"net/http"
 	"strings"
 	"testing"

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"ktea/config"
+	"kfee/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -70,7 +70,7 @@ func CompileProtoDir(protoc, dir string) (*ProtoSchema, error) {
 		return nil, fmt.Errorf("no .proto files found in %s", absDir)
 	}
 
-	descFile, err := os.CreateTemp("", "ktea-*.binpb")
+	descFile, err := os.CreateTemp("", "kfee-*.binpb")
 	if err != nil {
 		return nil, err
 	}

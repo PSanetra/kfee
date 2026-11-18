@@ -3,7 +3,7 @@ package sradmin
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"ktea/config"
+	"kfee/config"
 	"testing"
 )
 

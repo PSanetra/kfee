@@ -2,7 +2,7 @@ package kcon_page
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"ktea/config"
+	"kfee/config"
 )
 
 type LoadKConPageMockCalled struct {

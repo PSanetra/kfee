@@ -13,7 +13,7 @@ func ptr[T any](v T) *T { return &v }
 
 func testIO(t *testing.T) (IO, string, string) {
 	t.Helper()
-	dir := filepath.Join(t.TempDir(), "ktea")
+	dir := filepath.Join(t.TempDir(), "kfee")
 	configFile := filepath.Join(dir, "config.yaml")
 	connectionsFile := filepath.Join(dir, "connections.yaml")
 	return newFileIO(configFile, connectionsFile), configFile, connectionsFile

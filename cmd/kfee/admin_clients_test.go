@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
-	"ktea/config"
-	"ktea/kadmin"
-	"ktea/kontext"
+	"kfee/config"
+	"kfee/kadmin"
+	"kfee/kontext"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

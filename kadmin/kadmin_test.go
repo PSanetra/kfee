@@ -3,8 +3,8 @@ package kadmin
 import (
 	"context"
 	"fmt"
-	"ktea/config"
-	"ktea/styles"
+	"kfee/config"
+	"kfee/styles"
 	"log"
 	"net"
 	"os"

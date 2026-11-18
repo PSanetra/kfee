@@ -2,12 +2,12 @@ package consume_page
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"ktea/kadmin"
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/cmdbar"
-	"ktea/ui/components/notifier"
-	"ktea/ui/components/statusbar"
+	"kfee/kadmin"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/cmdbar"
+	"kfee/ui/components/notifier"
+	"kfee/ui/components/statusbar"
 )
 
 type ConsumptionCmdBar struct {

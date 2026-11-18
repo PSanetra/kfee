@@ -1,11 +1,11 @@
 package consume_page
 
 import (
-	"ktea/config"
-	"ktea/kadmin"
-	"ktea/serdes"
-	"ktea/ui"
-	"ktea/ui/tabs"
+	"kfee/config"
+	"kfee/kadmin"
+	"kfee/serdes"
+	"kfee/ui"
+	"kfee/ui/tabs"
 	"os"
 	"os/exec"
 	"path/filepath"

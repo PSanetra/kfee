@@ -1,9 +1,9 @@
 package tests
 
 import (
-	"ktea/config"
-	"ktea/kontext"
-	"ktea/ui"
+	"kfee/config"
+	"kfee/kontext"
+	"kfee/ui"
 )
 
 var Kontext = NewKontext()

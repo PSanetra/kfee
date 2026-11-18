@@ -4,27 +4,27 @@ import (
 	"flag"
 	"fmt"
 	"image/color"
-	"ktea/ccloud"
-	"ktea/config"
-	"ktea/kadmin"
-	"ktea/kcadmin"
-	"ktea/kontext"
-	"ktea/serdes"
-	"ktea/sradmin"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/help"
-	"ktea/ui/components/statusbar"
-	"ktea/ui/components/tab"
-	"ktea/ui/pages/clusters_page"
-	"ktea/ui/tabs"
-	"ktea/ui/tabs/cgroups_tab"
-	"ktea/ui/tabs/clusters_tab"
-	"ktea/ui/tabs/kcon_tab"
-	"ktea/ui/tabs/loading_tab"
-	"ktea/ui/tabs/settings_tab"
-	"ktea/ui/tabs/sr_tab"
-	"ktea/ui/tabs/topics_tab"
+	"kfee/ccloud"
+	"kfee/config"
+	"kfee/kadmin"
+	"kfee/kcadmin"
+	"kfee/kontext"
+	"kfee/serdes"
+	"kfee/sradmin"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/help"
+	"kfee/ui/components/statusbar"
+	"kfee/ui/components/tab"
+	"kfee/ui/pages/clusters_page"
+	"kfee/ui/tabs"
+	"kfee/ui/tabs/cgroups_tab"
+	"kfee/ui/tabs/clusters_tab"
+	"kfee/ui/tabs/kcon_tab"
+	"kfee/ui/tabs/loading_tab"
+	"kfee/ui/tabs/settings_tab"
+	"kfee/ui/tabs/sr_tab"
+	"kfee/ui/tabs/topics_tab"
 	"os"
 	"slices"
 	"time"
@@ -315,7 +315,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.tabCtrl = m.settingsTabCtrl
 			}
-			// can only be nil when ktea has not been fully loaded yet (config.LoadedMsg not been processed)
+			// can only be nil when kfee has not been fully loaded yet (config.LoadedMsg not been processed)
 			if m.tabCtrl != nil {
 				cmds = append(cmds, m.tabCtrl.Update(ui.RegainedFocusMsg{}))
 			}
@@ -432,10 +432,13 @@ func NewModel(
 	}
 }
 
+// upstream is the project kfee is forked from.
+const upstream = "a fork of ktea (https://github.com/jonas-grgt/ktea)"
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "confluent" {
 		if err := ccloud.Run(config.New(config.NewDefaultIO())); err != nil {
-			fmt.Fprintln(os.Stderr, "ktea:", err)
+			fmt.Fprintln(os.Stderr, "kfee:", err)
 			os.Exit(1)
 		}
 		return
@@ -447,7 +450,8 @@ func main() {
 		versionParam    bool
 	)
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage:\n  ktea [flags]\n  ktea confluent    add a Confluent Cloud cluster using the Confluent CLI\n\nFlags:\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "kfee is a Kafka terminal client, %s.\n\n"+
+			"Usage:\n  kfee [flags]\n  kfee confluent    add a Confluent Cloud cluster using the Confluent CLI\n\nFlags:\n", upstream)
 		flag.PrintDefaults()
 	}
 	flag.Var(&debugParam, "debug", "enable debug logging: --debug writes ./debug.log, --debug=PATH writes to PATH\n(a directory gets PATH/debug.log); --debug PATH with a space is not supported")
@@ -456,7 +460,7 @@ func main() {
 	flag.Parse()
 
 	if versionParam {
-		fmt.Println("ktea " + resolveVersion())
+		fmt.Println("kfee " + resolveVersion())
 		return
 	}
 
@@ -488,7 +492,7 @@ func main() {
 		logPath := resolveDebugLogPath(debugParam.path)
 		debugFile, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ktea: cannot open debug log %s: %v\n", logPath, err)
+			fmt.Fprintf(os.Stderr, "kfee: cannot open debug log %s: %v\n", logPath, err)
 			os.Exit(1)
 		}
 		log.SetOutput(debugFile)
@@ -509,7 +513,7 @@ func main() {
 		log.Fatal("Failed starting the TUI", err)
 	}
 	if model.startErr != nil {
-		fmt.Fprintln(os.Stderr, "ktea:", model.startErr)
+		fmt.Fprintln(os.Stderr, "kfee:", model.startErr)
 		os.Exit(1)
 	}
 }

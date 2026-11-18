@@ -2,16 +2,16 @@ package main
 
 import (
 	"github.com/charmbracelet/x/ansi"
-	"ktea/config"
-	"ktea/kadmin"
-	"ktea/kontext"
+	"kfee/config"
+	"kfee/kadmin"
+	"kfee/kontext"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestKtea(t *testing.T) {
+func TestKfee(t *testing.T) {
 
 	disableNerdFonts := true
 

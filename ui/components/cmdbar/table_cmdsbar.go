@@ -1,9 +1,9 @@
 package cmdbar
 
 import (
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
 
 	tea "charm.land/bubbletea/v2"
 )

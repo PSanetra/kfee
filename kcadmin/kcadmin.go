@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"ktea/config"
-	"ktea/kadmin"
+	"kfee/config"
+	"kfee/kadmin"
 	"net/http"
 )
 

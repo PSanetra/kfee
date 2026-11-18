@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"ktea/config"
-	"ktea/styles"
+	"kfee/config"
+	"kfee/styles"
 	"os"
 	"strings"
 	"time"
@@ -13,7 +13,7 @@ import (
 	"charm.land/huh/v2"
 )
 
-// Wizard interactively adds a Confluent Cloud cluster to the ktea configuration.
+// Wizard interactively adds a Confluent Cloud cluster to the kfee configuration.
 type Wizard struct {
 	cli   CLI
 	cfg   *config.Config
@@ -90,7 +90,7 @@ func (w *Wizard) choose() (setup, error) {
 	s.activate = true
 	fields := []huh.Field{
 		huh.NewInput().
-			Title("Name in ktea").
+			Title("Name in kfee").
 			Value(&s.name).
 			Validate(func(name string) error {
 				if strings.TrimSpace(name) == "" {
@@ -183,9 +183,9 @@ func (w *Wizard) summary(s setup) string {
 		lines = append(lines, fmt.Sprintf("API key %q for Schema Registry %s", desc, s.sr.ID))
 	}
 	if w.cfg.FindClusterByName(s.name) != nil {
-		lines = append(lines, fmt.Sprintf("Updates the existing ktea cluster %q", s.name))
+		lines = append(lines, fmt.Sprintf("Updates the existing kfee cluster %q", s.name))
 	} else {
-		lines = append(lines, fmt.Sprintf("Adds the ktea cluster %q", s.name))
+		lines = append(lines, fmt.Sprintf("Adds the kfee cluster %q", s.name))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -1,10 +1,10 @@
 package consume_page
 
 import (
-	"ktea/kadmin"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/border"
+	"kfee/kadmin"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/border"
 	"strings"
 
 	"charm.land/lipgloss/v2"

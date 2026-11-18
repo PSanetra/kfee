@@ -1,13 +1,15 @@
 version: 2
 
+project_name: kfee
+
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: ktea
-    binary: ktea
-    main: ./cmd/ktea
+  - id: kfee
+    binary: kfee
+    main: ./cmd/kfee
     env:
       - CGO_ENABLED=0
     tags: prd
@@ -24,26 +26,11 @@ archives:
   - formats: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
-brews:
-  - name: ktea
-    url_template: "https://github.com/jonas-grgt/ktea/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-    homepage: https://github.com/jonas-grgt/ktea
-    description: Kafka Terminal UI
-    commit_author:
-      name: jonas-grgt
-      email: jonas.grgt@gmail.com
-    repository:
-      owner: jonas-grgt
-      name: ktea-brew
-      branch: main
-      token: "{{ .Env.KTEA_HOMEBREW_TOKEN }}"
-
 nfpms:
   - file_name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
-    maintainer: Jonas Geiregat
-    homepage: https://github.com/jonas-grgt/ktea
-    description: Kafka Terminal UI
+    maintainer: PSanetra
+    homepage: https://github.com/PSanetra/kfee
+    description: Kafka terminal client, a fork of ktea
     license: "Apache-2.0"
     formats:
       - deb
@@ -54,7 +41,7 @@ nfpms:
     section: utils
     contents:
       - src: ./LICENSE
-        dst: /usr/share/doc/k9s/copyright
+        dst: /usr/share/doc/kfee/copyright
         file_info:
           mode: 0644
 
@@ -66,8 +53,12 @@ changelog:
       - "^test:"
 
 release:
+  github:
+    owner: PSanetra
+    name: kfee
   footer: >-
 
     ---
 
+    kfee is a fork of [ktea](https://github.com/jonas-grgt/ktea).
     Released by [GoReleaser](https://github.com/goreleaser/goreleaser).

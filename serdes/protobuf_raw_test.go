@@ -1,7 +1,7 @@
 package serdes
 
 import (
-	"ktea/config"
+	"kfee/config"
 	"math"
 	"os/exec"
 	"strings"

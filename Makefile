@@ -2,9 +2,9 @@
 # every up-* target stops the others first.
 
 COMPOSE       := docker compose
-DEFAULT_STACK := $(COMPOSE) -p ktea-dev -f docker/docker-compose.yml
-SSL_STACK     := $(COMPOSE) -p ktea-ssl -f docker/docker-compose-ssl.yml
-SCRAM_STACK   := $(COMPOSE) -p ktea-scram -f docker/docker-compose-scram.yml
+DEFAULT_STACK := $(COMPOSE) -p kfee-dev -f docker/docker-compose.yml
+SSL_STACK     := $(COMPOSE) -p kfee-ssl -f docker/docker-compose-ssl.yml
+SCRAM_STACK   := $(COMPOSE) -p kfee-scram -f docker/docker-compose-scram.yml
 
 .DEFAULT_GOAL := help
 .PHONY: help up up-ssl up-scram down clean seed logs generate run run-debug screenshots
@@ -41,18 +41,18 @@ seed: ## Create topics, consumer groups and offsets on the default cluster
 	$(DEFAULT_STACK) --profile kafka-init run --rm kafka-init
 
 logs: ## Follow the logs of the running cluster
-	@stack=$$($(COMPOSE) ls -q | grep -E '^ktea-(dev|ssl|scram)$$' | head -1); \
+	@stack=$$($(COMPOSE) ls -q | grep -E '^kfee-(dev|ssl|scram)$$' | head -1); \
 	if [ -z "$$stack" ]; then echo "no cluster running"; exit 1; fi; \
 	$(COMPOSE) -p $$stack logs -f
 
 generate: ## Produce test records to the running cluster
 	go run ./cmd/generate
 
-run: ## Run ktea with the dev tag (simulated slow network)
-	go run -tags dev ./cmd/ktea
+run: ## Run kfee with the dev tag (simulated slow network)
+	go run -tags dev ./cmd/kfee
 
-run-debug: ## Run ktea with the dev tag and --debug (writes debug.log)
-	go run -tags dev ./cmd/ktea --debug
+run-debug: ## Run kfee with the dev tag and --debug (writes debug.log)
+	go run -tags dev ./cmd/kfee --debug
 
 screenshots: ## Regenerate the README screenshots with VHS (needs make up && make generate)
 	./docs/screenshots/screenshots.sh

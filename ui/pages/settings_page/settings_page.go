@@ -2,12 +2,12 @@ package settings_page
 
 import (
 	"fmt"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/border"
-	"ktea/ui/components/statusbar"
-	ktable "ktea/ui/components/table"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/border"
+	"kfee/ui/components/statusbar"
+	ktable "kfee/ui/components/table"
 
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
@@ -65,7 +65,7 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.RegainedFocusMsg:
-		// pick up theme files added while ktea runs
+		// pick up theme files added while kfee runs
 		m.themes = styles.Available(m.themesDir)
 		return nil
 	case tea.KeyPressMsg:

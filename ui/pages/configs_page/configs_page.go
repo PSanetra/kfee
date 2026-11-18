@@ -2,14 +2,14 @@ package configs_page
 
 import (
 	"fmt"
-	"ktea/kadmin"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/border"
-	"ktea/ui/components/statusbar"
-	ktable "ktea/ui/components/table"
-	"ktea/ui/tabs"
+	"kfee/kadmin"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/border"
+	"kfee/ui/components/statusbar"
+	ktable "kfee/ui/components/table"
+	"kfee/ui/tabs"
 	"sort"
 	"strings"
 

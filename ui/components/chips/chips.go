@@ -5,9 +5,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"fmt"
 	"image/color"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
 	"strings"
 )
 

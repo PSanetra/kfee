@@ -1,8 +1,8 @@
 package pages
 
 import (
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
 )
 
 type Page interface {

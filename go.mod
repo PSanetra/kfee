@@ -1,4 +1,4 @@
-module ktea
+module kfee
 
 go 1.26.0
 

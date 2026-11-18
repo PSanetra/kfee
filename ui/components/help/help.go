@@ -2,8 +2,8 @@
 package help
 
 import (
-	"ktea/styles"
-	"ktea/ui/components/statusbar"
+	"kfee/styles"
+	"kfee/ui/components/statusbar"
 	"strings"
 
 	lg "charm.land/lipgloss/v2"

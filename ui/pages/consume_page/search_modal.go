@@ -2,9 +2,9 @@ package consume_page
 
 import (
 	"fmt"
-	"ktea/kadmin"
-	"ktea/styles"
-	"ktea/ui/components/statusbar"
+	"kfee/kadmin"
+	"kfee/styles"
+	"kfee/ui/components/statusbar"
 	"strings"
 	"time"
 

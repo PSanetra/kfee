@@ -2,11 +2,11 @@ package create_cluster_page
 
 import (
 	"github.com/charmbracelet/x/ansi"
-	"ktea/config"
-	"ktea/kcadmin"
-	"ktea/tests"
-	"ktea/ui/components/cmdbar"
-	"ktea/ui/tabs"
+	"kfee/config"
+	"kfee/kcadmin"
+	"kfee/tests"
+	"kfee/ui/components/cmdbar"
+	"kfee/ui/tabs"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"

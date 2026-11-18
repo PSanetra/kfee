@@ -1,7 +1,7 @@
 package kadmin
 
 import (
-	"ktea/config"
+	"kfee/config"
 
 	tea "charm.land/bubbletea/v2"
 )

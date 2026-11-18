@@ -2,10 +2,10 @@ package kcon_clusters_page
 
 import (
 	"github.com/charmbracelet/x/ansi"
-	"ktea/config"
-	"ktea/styles"
-	"ktea/tests"
-	"ktea/ui/pages/kcon_page"
+	"kfee/config"
+	"kfee/styles"
+	"kfee/tests"
+	"kfee/ui/pages/kcon_page"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"

@@ -1,8 +1,8 @@
 package kontext
 
 import (
-	"ktea/config"
-	"ktea/serdes"
+	"kfee/config"
+	"kfee/serdes"
 )
 
 type ProgramKtx struct {

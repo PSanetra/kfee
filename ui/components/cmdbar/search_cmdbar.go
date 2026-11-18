@@ -4,10 +4,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"charm.land/log/v2"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
 )
 
 type state int

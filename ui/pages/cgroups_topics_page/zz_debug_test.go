@@ -2,9 +2,9 @@ package cgroups_topics_page
 
 import (
 	"fmt"
-	"ktea/kadmin"
-	"ktea/tests"
-	"ktea/ui/tabs"
+	"kfee/kadmin"
+	"kfee/tests"
+	"kfee/ui/tabs"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"

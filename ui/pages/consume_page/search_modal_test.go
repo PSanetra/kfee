@@ -1,8 +1,8 @@
 package consume_page
 
 import (
-	"ktea/kadmin"
-	"ktea/tests"
+	"kfee/kadmin"
+	"kfee/tests"
 	"testing"
 	"time"
 

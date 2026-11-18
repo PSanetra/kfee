@@ -1,8 +1,8 @@
 package kadmin
 
 import (
-	"ktea/serdes"
-	"ktea/sradmin"
+	"kfee/serdes"
+	"kfee/sradmin"
 )
 
 type SraSetter interface {

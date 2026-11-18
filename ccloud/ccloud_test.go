@@ -3,7 +3,7 @@ package ccloud
 import (
 	"bytes"
 	"errors"
-	"ktea/config"
+	"kfee/config"
 	"strings"
 	"testing"
 	"time"
@@ -71,11 +71,11 @@ func TestCLI(t *testing.T) {
 	})
 
 	t.Run("creates api keys", func(t *testing.T) {
-		key, err := cli.CreateAPIKey("env-1", "lkc-1", "ktea 2026-11-18 14:05:07")
+		key, err := cli.CreateAPIKey("env-1", "lkc-1", "kfee 2026-11-18 14:05:07")
 
 		require.NoError(t, err)
 		assert.Equal(t, APIKey{Key: "KEY", Secret: "SECRET"}, key)
-		assert.Equal(t, "api-key create --resource lkc-1 --environment env-1 --description ktea 2026-11-18 14:05:07 --output json",
+		assert.Equal(t, "api-key create --resource lkc-1 --environment env-1 --description kfee 2026-11-18 14:05:07 --output json",
 			fake.calls[len(fake.calls)-1])
 	})
 
@@ -102,7 +102,7 @@ func TestCLI(t *testing.T) {
 }
 
 func TestKeyDescription(t *testing.T) {
-	assert.Equal(t, "ktea 2026-11-18 14:05:07", KeyDescription(time.Date(2026, 11, 18, 14, 5, 7, 0, time.UTC)))
+	assert.Equal(t, "kfee 2026-11-18 14:05:07", KeyDescription(time.Date(2026, 11, 18, 14, 5, 7, 0, time.UTC)))
 }
 
 func TestWizardApply(t *testing.T) {
@@ -136,8 +136,8 @@ func TestWizardApply(t *testing.T) {
 		require.NoError(t, w.apply(s))
 
 		assert.Equal(t, []string{
-			"api-key create --resource lkc-1 --environment env-1 --description ktea 2026-11-18 14:05:07 --output json",
-			"api-key create --resource lsrc-1 --environment env-1 --description ktea 2026-11-18 14:05:07 --output json",
+			"api-key create --resource lkc-1 --environment env-1 --description kfee 2026-11-18 14:05:07 --output json",
+			"api-key create --resource lsrc-1 --environment env-1 --description kfee 2026-11-18 14:05:07 --output json",
 		}, fake.calls)
 		cluster := cfg.FindClusterByName("orders-prod")
 		require.NotNil(t, cluster)

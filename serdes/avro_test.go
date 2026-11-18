@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"github.com/linkedin/goavro/v2"
 	"github.com/stretchr/testify/assert"
-	"ktea/sradmin"
+	"kfee/sradmin"
 	"testing"
 )
 

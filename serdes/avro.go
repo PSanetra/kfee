@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/linkedin/goavro/v2"
 	"github.com/pkg/errors"
-	"ktea/sradmin"
+	"kfee/sradmin"
 )
 
 type GoAvroDeserializer struct {

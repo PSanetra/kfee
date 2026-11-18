@@ -1,10 +1,10 @@
 package settings_tab
 
 import (
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
-	"ktea/ui/pages/settings_page"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
+	"kfee/ui/pages/settings_page"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"

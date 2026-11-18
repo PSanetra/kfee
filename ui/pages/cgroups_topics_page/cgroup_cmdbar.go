@@ -2,10 +2,10 @@ package cgroups_topics_page
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/cmdbar"
-	"ktea/ui/components/statusbar"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/cmdbar"
+	"kfee/ui/components/statusbar"
 )
 
 type CGroupCmdbar[T any] struct {

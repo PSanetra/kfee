@@ -2,7 +2,7 @@ package ui
 
 import (
 	"charm.land/lipgloss/v2"
-	"ktea/kontext"
+	"kfee/kontext"
 )
 
 type Renderer struct {

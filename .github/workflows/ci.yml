@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# publishing the coverage report and badge to the wiki
+permissions:
+  contents: write
+
 jobs:
 
   build:

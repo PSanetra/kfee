@@ -4,9 +4,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
-	"ktea/sradmin"
-	"ktea/tests"
-	"ktea/ui/tabs"
+	"kfee/sradmin"
+	"kfee/tests"
+	"kfee/ui/tabs"
 	"testing"
 )
 

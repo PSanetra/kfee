@@ -3,15 +3,15 @@ package sr_tab
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"ktea/kontext"
-	"ktea/sradmin"
-	"ktea/ui"
-	"ktea/ui/clipper"
-	"ktea/ui/components/statusbar"
-	"ktea/ui/pages"
-	"ktea/ui/pages/create_schema_page"
-	"ktea/ui/pages/schema_details_page"
-	"ktea/ui/pages/subjects_page"
+	"kfee/kontext"
+	"kfee/sradmin"
+	"kfee/ui"
+	"kfee/ui/clipper"
+	"kfee/ui/components/statusbar"
+	"kfee/ui/pages"
+	"kfee/ui/pages/create_schema_page"
+	"kfee/ui/pages/schema_details_page"
+	"kfee/ui/pages/subjects_page"
 )
 
 type Model struct {

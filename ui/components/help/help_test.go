@@ -1,8 +1,8 @@
 package help_test
 
 import (
-	"ktea/ui/components/help"
-	"ktea/ui/components/statusbar"
+	"kfee/ui/components/help"
+	"kfee/ui/components/statusbar"
 	"strings"
 	"testing"
 

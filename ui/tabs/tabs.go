@@ -1,7 +1,7 @@
 package tabs
 
 import (
-	"ktea/ui"
+	"kfee/ui"
 )
 
 type TabController interface {

@@ -3,9 +3,9 @@ package statusbar
 import (
 	lg "charm.land/lipgloss/v2"
 	"image/color"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
 )
 
 type Model struct {

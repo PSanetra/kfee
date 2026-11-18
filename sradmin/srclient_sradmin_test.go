@@ -2,7 +2,7 @@ package sradmin
 
 import (
 	"crypto/tls"
-	"ktea/config"
+	"kfee/config"
 	"net/http"
 	"testing"
 )

@@ -3,10 +3,10 @@ package cgroups_page
 import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	"ktea/kadmin"
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/notifier"
+	"kfee/kadmin"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/notifier"
 )
 
 type CmdBar struct {

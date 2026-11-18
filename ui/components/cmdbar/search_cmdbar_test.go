@@ -3,7 +3,7 @@ package cmdbar
 import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
-	"ktea/tests"
+	"kfee/tests"
 	"testing"
 )
 

@@ -4,11 +4,11 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/notifier"
-	"ktea/ui/components/statusbar"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/notifier"
+	"kfee/ui/components/statusbar"
 	"reflect"
 )
 

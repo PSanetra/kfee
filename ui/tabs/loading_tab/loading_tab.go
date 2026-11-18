@@ -3,9 +3,9 @@ package loading_tab
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"ktea/kontext"
-	"ktea/ui"
-	"ktea/ui/components/notifier"
+	"kfee/kontext"
+	"kfee/ui"
+	"kfee/ui/components/notifier"
 )
 
 type Model struct {

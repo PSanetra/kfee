@@ -3,12 +3,12 @@ package subjects_page
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"ktea/kontext"
-	"ktea/sradmin"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/cmdbar"
-	"ktea/ui/components/statusbar"
+	"kfee/kontext"
+	"kfee/sradmin"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/cmdbar"
+	"kfee/ui/components/statusbar"
 )
 
 type TableCmdsBar struct {

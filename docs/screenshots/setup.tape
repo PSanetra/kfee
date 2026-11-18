@@ -10,5 +10,5 @@ Set Theme { "name": "Night Owl", "black": "#011627", "red": "#EF5350", "green": 
 Set TypingSpeed 10ms
 
 Hide
-Type "$KTEA_BIN" Enter
+Type "$KFEE_BIN" Enter
 Wait+Screen@30s /Total Topics/

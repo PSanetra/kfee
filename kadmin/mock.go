@@ -2,9 +2,9 @@ package kadmin
 
 import (
 	"context"
-	"ktea/config"
-	"ktea/serdes"
-	"ktea/sradmin"
+	"kfee/config"
+	"kfee/serdes"
+	"kfee/sradmin"
 
 	tea "charm.land/bubbletea/v2"
 )

@@ -5,10 +5,10 @@ import (
 	"charm.land/lipgloss/v2"
 	"fmt"
 	"image/color"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/statusbar"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/statusbar"
 	"strings"
 )
 

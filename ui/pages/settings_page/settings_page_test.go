@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"ktea/config"
-	"ktea/styles"
-	"ktea/tests"
+	"kfee/config"
+	"kfee/styles"
+	"kfee/tests"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"

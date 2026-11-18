@@ -6,12 +6,12 @@ import (
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"fmt"
-	"ktea/kadmin"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/notifier"
-	"ktea/ui/tabs"
+	"kfee/kadmin"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/notifier"
+	"kfee/ui/tabs"
 )
 
 type state int

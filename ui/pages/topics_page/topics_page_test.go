@@ -3,9 +3,9 @@ package topics_page
 import (
 	"fmt"
 	"github.com/charmbracelet/x/ansi"
-	"ktea/kadmin"
-	"ktea/tests"
-	"ktea/ui/tabs"
+	"kfee/kadmin"
+	"kfee/tests"
+	"kfee/ui/tabs"
 	"strings"
 	"testing"
 

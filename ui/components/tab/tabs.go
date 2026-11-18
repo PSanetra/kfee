@@ -3,9 +3,9 @@ package tab
 import (
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
-	"ktea/kontext"
-	"ktea/styles"
-	"ktea/ui"
+	"kfee/kontext"
+	"kfee/styles"
+	"kfee/ui"
 	"strings"
 )
 

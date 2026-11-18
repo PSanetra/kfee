@@ -2,7 +2,7 @@ package table
 
 import (
 	"charm.land/bubbles/v2/table"
-	"ktea/styles"
+	"kfee/styles"
 )
 
 func NewDefaultTable() table.Model {

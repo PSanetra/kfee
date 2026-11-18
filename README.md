@@ -1,12 +1,22 @@
-[![Latest Release](https://img.shields.io/github/release/jonas-grgt/ktea.svg)](https://github.com/jonas-grgt/ktea/releases)
-[![Build Status](https://github.com/jonas-grgt/ktea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jonas-grgt/ktea/actions)
-[![Go Coverage](https://github.com/jonas-grgt/ktea/wiki/coverage.svg)](https://raw.githack.com/wiki/jonas-grgt/ktea/coverage.html)
+[![Latest Release](https://img.shields.io/github/release/PSanetra/kfee.svg)](https://github.com/PSanetra/kfee/releases)
+[![Build Status](https://github.com/PSanetra/kfee/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PSanetra/kfee/actions)
+[![Go Coverage](https://github.com/PSanetra/kfee/wiki/coverage.svg)](https://raw.githack.com/wiki/PSanetra/kfee/coverage.html)
 
-# 🫖 ktea - kafka terminal client
+# ☕ kfee - kafka terminal client
 
-ktea is a tool designed to simplify and accelerate interactions with Kafka clusters.
+kfee is a tool designed to simplify and accelerate interactions with Kafka clusters.
+It is a fork of [ktea](https://github.com/jonas-grgt/ktea) by Jonas Geiregat, released separately starting with
+version 1.0.0. On top of ktea it adds:
 
-If you're a **k9s** user, you'll love **ktea**!
+- **Protobuf decoding** of raw protobuf records with your `.proto` files or without schema, configured in the TUI per
+  topic and optionally selecting the message type by a header, see [Protobuf decoding](#protobuf-decoding)
+- **Full topic search**, also in header values, most recent matches first
+- **Record preview** next to the records in wide terminals, `c` copies the previewed record
+- **`kfee confluent`** to add a Confluent Cloud cluster using the Confluent CLI, see [Confluent Cloud](#confluent-cloud)
+- **`connections.yaml`**, keeping the connection settings and credentials of clusters separate and readable by your
+  user only, see [Configuration](#configuration)
+
+If you're a **k9s** user, you'll love **kfee**!
 
 **List Topics**
 ![topics-page.png](docs/screenshots/topics-page.png)
@@ -22,20 +32,20 @@ If you're a **k9s** user, you'll love **ktea**!
 
 ## Installation
 
-### Mac
+Binaries for Linux, macOS and Windows as well as `deb`, `rpm`, `apk` and Arch Linux packages are available on the
+[release page](https://github.com/PSanetra/kfee/releases).
+
+To build kfee yourself with [Go](https://go.dev/dl/):
 
 ```sh
-brew tap jonas-grgt/ktea
-brew install ktea
+git clone https://github.com/PSanetra/kfee.git
+cd kfee
+CGO_ENABLED=0 go build -o kfee ./cmd/kfee
 ```
 
-### Linux
-
-Binaries are available at the release page.
-
-### Windows
-
-Binaries are available at the release page.
+kfee uses its own configuration directory, so it can be installed next to ktea. To take over a ktea configuration,
+copy `~/.config/ktea` to `~/.config/kfee` and move the connection settings to `connections.yaml`,
+see [Configuration](#configuration).
 
 ## Usage
 
@@ -49,14 +59,14 @@ All tables can be navigated using vi like bindings:
 
 ### Configuration
 
-The configuration is stored in two files in `~/.config/ktea/`
-(`$XDG_CONFIG_HOME/ktea/` when `XDG_CONFIG_HOME` is set, on macOS too; all `~/.config/ktea` paths below follow it):
+The configuration is stored in two files in `~/.config/kfee/`
+(`$XDG_CONFIG_HOME/kfee/` when `XDG_CONFIG_HOME` is set, on macOS too; all `~/.config/kfee` paths below follow it):
 
 - `config.yaml` holds the settings not related to connecting to clusters: theme, fonts and per cluster its name,
   color, whether it is active and its protobuf decoders.
 - `connections.yaml` holds the connection settings of the clusters: servers, credentials, TLS, Schema Registry and
   Kafka Connect. It is only readable by your user (`0600`). If you use AI coding agents, consider denying them
-  access to this file, e.g. with a `Read(~/.config/ktea/connections.yaml)` deny rule in Claude Code.
+  access to this file, e.g. with a `Read(~/.config/kfee/connections.yaml)` deny rule in Claude Code.
 
 All cluster configurations can be managed through the TUI even the initial one.
 
@@ -95,7 +105,7 @@ clusters:
 ```
 
 Clusters only present in `connections.yaml` are added as well.
-Connection settings in `config.yaml` (as written by older ktea versions) are refused at startup, move them to `connections.yaml`.
+Connection settings in `config.yaml` (as written by ktea) are refused at startup, move them to `connections.yaml`.
 
 ### Protobuf decoding
 
@@ -120,7 +130,7 @@ Without `.proto` files, choose *Without schema* in the first step (no `protoc` n
 integers (bools, enums and `sint` look the same), fixed32/fixed64 as unsigned integers and length-delimited fields
 as nested message, string or hex bytes. Such rules are stored as `raw: true` and can use a discriminator header too.
 
-The decoders are stored per cluster in `config.yaml` and can be edited by hand as well (restart ktea afterwards):
+The decoders are stored per cluster in `config.yaml` and can be edited by hand as well (restart kfee afterwards):
 
 ```yaml
 clusters:
@@ -139,20 +149,20 @@ clusters:
 
 ### Debug logging
 
-Debug logs are written when `ktea` is started with `--debug`:
+Debug logs are written when `kfee` is started with `--debug`:
 
 ```sh
-ktea --debug                 # writes ./debug.log
-ktea --debug=/tmp/ktea       # writes /tmp/ktea/debug.log (when /tmp/ktea is a directory)
-ktea --debug=/tmp/ktea.log   # writes /tmp/ktea.log
+kfee --debug                 # writes ./debug.log
+kfee --debug=/tmp/kfee       # writes /tmp/kfee/debug.log (when /tmp/kfee is a directory)
+kfee --debug=/tmp/kfee.log   # writes /tmp/kfee.log
 ```
 
 The path must be attached with `=`; `--debug /path` is not supported.
 
 ### Themes
 
-ktea comes with several color themes, and you can write your own.
-Choose one with the `theme` key in `~/.config/ktea/config.yaml`:
+kfee comes with several color themes, and you can write your own.
+Choose one with the `theme` key in `~/.config/kfee/config.yaml`:
 
 ```yaml
 theme: desert
@@ -160,13 +170,13 @@ theme: desert
 
 Or open the **Settings** tab, select a theme and press `enter`: it is applied right away and saved to `config.yaml`.
 Themes you add to the themes folder show up there the next time you open the tab.
-If you edit `config.yaml` by hand, restart ktea to pick up the change.
+If you edit `config.yaml` by hand, restart kfee to pick up the change.
 
 #### Built-in themes
 
 | Theme        | Description                                                                           |
 |--------------|---------------------------------------------------------------------------------------|
-| `default`    | ktea's original pink and indigo colors. Used when `theme` is not set.                 |
+| `default`    | The original pink and indigo colors of ktea. Used when `theme` is not set.            |
 | `dracula`    | The [Dracula](https://draculatheme.com) palette, with Alucard on light terminals.     |
 | `catppuccin` | The [Catppuccin](https://catppuccin.com/palette/) palette: Mocha when dark, Latte when light. Paints the flavor's background. |
 | `catppuccin-latte`, `catppuccin-frappe`, `catppuccin-macchiato`, `catppuccin-mocha` | One Catppuccin flavor, always, whatever your terminal's background. Paints the flavor's background. |
@@ -186,23 +196,23 @@ All themes except `default`, `dracula` and `desert` paint their own background, 
 record payloads with the matching syntax style.
 
 Most themes have a dark and a light variant.
-When ktea starts, it asks your terminal whether its background is dark or light and uses the matching variant.
+When kfee starts, it asks your terminal whether its background is dark or light and uses the matching variant.
 Themes named after one variant, such as `catppuccin-mocha` or `gruvbox-light`, always use that variant, and so do `nord` and `onedark`.
 
-Themes that paint the background also set the default text color, and ktea restores your terminal's own colors when you switch to another theme or quit.
+Themes that paint the background also set the default text color, and kfee restores your terminal's own colors when you switch to another theme or quit.
 
 #### Creating your own theme
 
-1. Create the folder `~/.config/ktea/themes/`.
-2. Add a file `<name>.yaml` to it, for example `~/.config/ktea/themes/ocean.yaml`.
+1. Create the folder `~/.config/kfee/themes/`.
+2. Add a file `<name>.yaml` to it, for example `~/.config/kfee/themes/ocean.yaml`.
 3. Set `theme: ocean` in `config.yaml` (the file name without `.yaml`).
-4. Start ktea.
+4. Start kfee.
 
 A custom theme starts from a built-in theme (its `base`) and changes only the colors you list.
 A small file is enough to tweak an existing theme:
 
 ```yaml
-# ~/.config/ktea/themes/my-dracula.yaml
+# ~/.config/kfee/themes/my-dracula.yaml
 base: dracula
 dark:
   primary: "#50fa7b"
@@ -239,12 +249,12 @@ These colors can be set under `dark` and `light`:
 | `active`       | active tab inside a bordered box                                     |
 | `success`      | success messages                                                     |
 | `error`        | error messages                                                       |
-| `background`   | paints the whole terminal background while ktea runs and makes `text` the default text color (leave it out to keep your terminal's colors) |
+| `background`   | paints the whole terminal background while kfee runs and makes `text` the default text color (leave it out to keep your terminal's colors) |
 
 A complete theme that sets every color:
 
 ```yaml
-# ~/.config/ktea/themes/ocean.yaml
+# ~/.config/kfee/themes/ocean.yaml
 syntax: nord
 dark:
   primary: "#5fb3d9"
@@ -274,10 +284,10 @@ The `light` section above only lists four colors. That is fine: colors you leave
 not from `dark`, so here they are taken from the `default` theme's light variant.
 
 If a theme file has a mistake, such as an unknown color name, an invalid color or an unknown base,
-ktea does not start and prints which field is wrong, for example:
+kfee does not start and prints which field is wrong, for example:
 
 ```
-ktea: theme "ocean": unknown color dark.primry
+kfee: theme "ocean": unknown color dark.primry
 ```
 
 Cluster colors are set per cluster (see above) and do not change with the theme.
@@ -293,11 +303,11 @@ to add one.
 With the [Confluent CLI](https://docs.confluent.io/confluent-cli/current/install.html) installed, run
 
 ```sh
-ktea confluent
+kfee confluent
 ```
 
 to add a Confluent Cloud cluster. The wizard lets you choose the environment and Kafka cluster
-(offering to run `confluent login` when needed), creates an API key described as `ktea <date time>`
+(offering to run `confluent login` when needed), creates an API key described as `kfee <date time>`
 and optionally a second one for the environment's Schema Registry, and saves the cluster (its connection settings to `connections.yaml`).
 
 #### TLS support
@@ -353,11 +363,11 @@ The `Makefile` wraps these, run `make` to list all goals:
 After the local cluster is up and running, you can generate some data to work with, 
 using `make generate` (`go run ./cmd/generate`).
 
-### Run `ktea`
+### Run `kfee`
 
-Use `make run` (`go run -tags dev ./cmd/ktea`) to run `ktea` from the root of the repository,
+Use `make run` (`go run -tags dev ./cmd/kfee`) to run `kfee` from the root of the repository,
 or `make run-debug` to also write a `debug.log`
-(use `go run -tags dev ./cmd/ktea --debug=PATH` to write it somewhere else).
+(use `go run -tags dev ./cmd/kfee --debug=PATH` to write it somewhere else).
 
 > Note: running the tui with dev build tag will simulate an artificial slow network by sleeping for 2 seconds when doing network IO. This way the loaders and spinners can be visually asserted.
 > 

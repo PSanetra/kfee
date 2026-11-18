@@ -1,13 +1,13 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="prd run" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="ktea" />
+    <module name="kfee" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-tags prd" />
     <parameters value="--debug" />
     <kind value="PACKAGE" />
-    <package value="ktea/cmd/ktea" />
+    <package value="kfee/cmd/kfee" />
     <directory value="$PROJECT_DIR$" />
-    <filePath value="$PROJECT_DIR$/cmd/ktea/main.go" />
+    <filePath value="$PROJECT_DIR$/cmd/kfee/main.go" />
     <pty_enabled value="true" />
     <method v="2" />
   </configuration>

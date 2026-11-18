@@ -8,8 +8,8 @@
 *.so
 *.dylib
 
-# ktea binary built in the repository root, e.g. go build -o ktea ./cmd/ktea
-/ktea
+# kfee binary built in the repository root, e.g. go build -o kfee ./cmd/kfee
+/kfee
 
 # Test binary, built with `go test -c`
 *.test

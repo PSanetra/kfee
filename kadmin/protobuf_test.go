@@ -2,8 +2,8 @@ package kadmin
 
 import (
 	"context"
-	"ktea/config"
-	"ktea/serdes"
+	"kfee/config"
+	"kfee/serdes"
 	"os"
 	"os/exec"
 	"path/filepath"

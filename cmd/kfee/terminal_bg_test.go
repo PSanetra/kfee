@@ -3,9 +3,9 @@ package main
 import (
 	"testing"
 
-	"ktea/config"
-	"ktea/kadmin"
-	"ktea/styles"
+	"kfee/config"
+	"kfee/kadmin"
+	"kfee/styles"
 
 	tea "charm.land/bubbletea/v2"
 

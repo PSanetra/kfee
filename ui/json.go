@@ -7,7 +7,7 @@ import (
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
 	chrome_styles "github.com/alecthomas/chroma/v2/styles"
-	"ktea/styles"
+	"kfee/styles"
 	"strings"
 )
 

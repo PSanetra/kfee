@@ -5,12 +5,12 @@ import (
 	"charm.land/lipgloss/v2"
 	"fmt"
 	"image/color"
-	"ktea/kontext"
-	"ktea/sradmin"
-	"ktea/styles"
-	"ktea/ui"
-	"ktea/ui/components/cmdbar"
-	"ktea/ui/components/notifier"
+	"kfee/kontext"
+	"kfee/sradmin"
+	"kfee/styles"
+	"kfee/ui"
+	"kfee/ui/components/cmdbar"
+	"kfee/ui/components/notifier"
 	"strconv"
 )
 

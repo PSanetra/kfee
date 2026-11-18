@@ -2,12 +2,12 @@ package record_details_page
 
 import (
 	"fmt"
-	"ktea/config"
-	"ktea/kadmin"
-	"ktea/serdes"
-	"ktea/styles"
-	"ktea/ui/components/dirpicker"
-	"ktea/ui/components/statusbar"
+	"kfee/config"
+	"kfee/kadmin"
+	"kfee/serdes"
+	"kfee/styles"
+	"kfee/ui/components/dirpicker"
+	"kfee/ui/components/statusbar"
 	"os"
 	"regexp"
 
