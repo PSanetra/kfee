@@ -456,11 +456,7 @@ func main() {
 	flag.Parse()
 
 	if versionParam {
-		if version == "" {
-			fmt.Println("ktea (development build)")
-		} else {
-			fmt.Println("ktea " + version)
-		}
+		fmt.Println("ktea " + resolveVersion())
 		return
 	}
 
