@@ -148,6 +148,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.startReading(msg.details)
 	}
 
+	// the preview renders large payloads in the background
+	if cmd, handled := m.preview.Update(msg); handled {
+		return cmd
+	}
+
 	if m.isStale(msg) {
 		return nil
 	}
@@ -232,7 +237,24 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 	}
 
+	if m.previewVisible {
+		cmds = append(cmds, m.preview.request(m.previewedRecord()))
+	}
+
 	return tea.Batch(cmds...)
+}
+
+// previewedRecord is the record the next render previews: the one the user selected, or the first one.
+func (m *Model) previewedRecord() *kadmin.ConsumerRecord {
+	if m.selected != nil {
+		for _, row := range m.rows {
+			if row[2] == m.selected.partition && row[3] == m.selected.offset {
+				record := m.recordForRow(row)
+				return &record
+			}
+		}
+	}
+	return m.selectedRecord()
 }
 
 // rowKey identifies the record of a table row.

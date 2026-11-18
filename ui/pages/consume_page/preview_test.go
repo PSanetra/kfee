@@ -2,6 +2,7 @@ package consume_page
 
 import (
 	"errors"
+	"fmt"
 	"kfee/kadmin"
 	"kfee/serdes"
 	"kfee/tests"
@@ -34,6 +35,14 @@ func TestRecordPreview(t *testing.T) {
 		ktx := tests.NewKontext(tests.WithWindowWidth(width))
 		return ansi.Strip(m.View(ktx, tests.Renderer))
 	}
+	// update passes msg and completes the background rendering of the preview it requests
+	update := func(m *Model, msg tea.Msg) {
+		for _, msg := range tests.ExecuteBatchCmd(m.Update(msg)) {
+			if rendered, ok := msg.(previewRenderedMsg); ok {
+				m.Update(rendered)
+			}
+		}
+	}
 
 	t.Run("previews the selected record in wide windows", func(t *testing.T) {
 		m := newPage()
@@ -44,9 +53,42 @@ func TestRecordPreview(t *testing.T) {
 		assert.Contains(t, render, `"second-order"`)
 		assert.NotContains(t, render, `"first-order"`)
 
-		m.Update(tests.Key(tea.KeyDown))
+		update(m, tests.Key(tea.KeyDown))
 		render = view(m, 160)
 		assert.Contains(t, render, `"first-order"`)
+	})
+
+	t.Run("renders the preview in the background with a spinner", func(t *testing.T) {
+		m := newPage()
+		view(m, 160)
+
+		cmd := m.Update(tests.Key(tea.KeyDown))
+
+		assert.Contains(t, view(m, 160), "Rendering …")
+		for _, msg := range tests.ExecuteBatchCmd(cmd) {
+			if rendered, ok := msg.(previewRenderedMsg); ok {
+				m.Update(rendered)
+			}
+		}
+		render := view(m, 160)
+		assert.Contains(t, render, `"first-order"`)
+		assert.NotContains(t, render, "Rendering")
+
+		// rendered previews are cached
+		update(m, tests.Key(tea.KeyUp))
+		assert.Nil(t, m.Update(tests.Key(tea.KeyDown)), "no rendering requested")
+		assert.Contains(t, view(m, 160), `"first-order"`)
+	})
+
+	t.Run("renders only the visible part of large payloads", func(t *testing.T) {
+		var items []string
+		for i := 0; i < 5000; i++ {
+			items = append(items, fmt.Sprintf(`{"n":%d}`, i))
+		}
+
+		rendered := renderPreview("[" + strings.Join(items, ",") + "]")
+
+		assert.Equal(t, previewMaxLines, strings.Count(rendered, "\n")+1)
 	})
 
 	t.Run("fits the window", func(t *testing.T) {

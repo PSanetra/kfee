@@ -12,27 +12,45 @@ import (
 )
 
 func PrettyPrintJson(text string) string {
-	builder := &strings.Builder{}
-	formatter := formatters.TTY256
-	style := chrome_styles.Get(styles.Current.Syntax)
+	formatted, lexer := formatPayload(text)
+	return highlight(formatted, lexer)
+}
 
-	lexer := lexers.Fallback
-	var prettyJSON bytes.Buffer
-	var iterator chroma.Iterator
+// FormatPayload formats the payload like PrettyPrintJson, without highlighting it.
+func FormatPayload(text string) string {
+	formatted, _ := formatPayload(text)
+	return formatted
+}
+
+// PrettyPrintJsonLines pretty prints like PrettyPrintJson but highlights only the first maxLines
+// lines, which is much faster for large payloads, e.g. for previews.
+func PrettyPrintJsonLines(text string, maxLines int) string {
+	formatted, lexer := formatPayload(text)
+	if lines := strings.SplitN(formatted, "\n", maxLines+1); len(lines) > maxLines {
+		formatted = strings.Join(lines[:maxLines], "\n")
+	}
+	return highlight(formatted, lexer)
+}
+
+// formatPayload indents JSON payloads and chooses the lexer for highlighting them.
+func formatPayload(text string) (string, chroma.Lexer) {
 	if strings.Contains(text, "{") &&
 		strings.Contains(text, "}") {
-		json.Indent(&prettyJSON, []byte(text), "", "\t")
-		lexer = lexers.Get("json")
-		iterator, _ = lexer.Tokenise(nil, prettyJSON.String())
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, []byte(text), "", "\t"); err != nil {
+			// not JSON after all, highlight it as is
+			return text, lexers.Get("json")
+		}
+		return prettyJSON.String(), lexers.Get("json")
 	} else if strings.Contains(text, "/>") {
-		lexer = lexers.Get("XML")
-		iterator, _ = lexer.Tokenise(nil, text)
-	} else {
-		lexer = lexers.Fallback
-		iterator, _ = lexer.Tokenise(nil, text)
+		return text, lexers.Get("XML")
 	}
+	return text, lexers.Fallback
+}
 
-	formatter.Format(builder, style, iterator)
-
+func highlight(text string, lexer chroma.Lexer) string {
+	builder := &strings.Builder{}
+	iterator, _ := lexer.Tokenise(nil, text)
+	formatters.TTY256.Format(builder, chrome_styles.Get(styles.Current.Syntax), iterator)
 	return builder.String()
 }
