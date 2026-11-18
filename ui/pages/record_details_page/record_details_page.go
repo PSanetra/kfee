@@ -238,7 +238,8 @@ func (m *Model) sidebarView(ktx *kontext.ProgramKtx, payloadWidth int, height in
 		}
 
 		headerValue := m.selectedHeaderValue()
-		m.headerValueVp.SetContent("Header Value\n" + headerValueLine.String() + "\n" + headerValue)
+		// wrap long values, breaking words longer than the sidebar like ids or tokens
+		m.headerValueVp.SetContent("Header Value\n" + headerValueLine.String() + "\n" + ansi.Wrap(headerValue, max(sideBarWidth, 1), ""))
 
 		headerSideBar = ui.JoinVertical(
 			lipgloss.Top,

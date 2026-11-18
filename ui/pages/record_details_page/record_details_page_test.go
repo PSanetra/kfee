@@ -9,6 +9,7 @@ import (
 	"ktea/ui/clipper"
 	"ktea/ui/components/statusbar"
 	"ktea/ui/tabs"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -17,6 +18,52 @@ import (
 )
 
 func TestRecordDetailsPage(t *testing.T) {
+	t.Run("c copies the selected header value while the headers are focused", func(t *testing.T) {
+		long := "a long header value with many words that does not fit " + strings.Repeat("abcdefghij", 8)
+		record := &kadmin.ConsumerRecord{
+			Payload: serdes.DesData{Value: "{}"},
+			Headers: []kadmin.Header{
+				{Key: "a", Value: kadmin.NewHeaderValue("first")},
+				{Key: "trace", Value: kadmin.NewHeaderValue(long)},
+			},
+		}
+		var copied string
+		clip := &clipper.MockClipper{WriteFunc: func(text string) error {
+			copied = text
+			return nil
+		}}
+		ktx := tests.NewKontext(tests.WithWindowWidth(120))
+		m := New(record, "", []kadmin.ConsumerRecord{*record}, 0, clip, ktx, tabs.NewMockTopicsTabNavigator())
+		m.View(ktx, tests.Renderer)
+
+		m.Update(tests.Key('h'))
+		m.Update(tests.Key(tea.KeyDown))
+		assert.Contains(t, m.Shortcuts(), statusbar.Shortcut{Name: "Copy Header Value", Keybinding: "c"})
+		msgs := tests.ExecuteBatchCmd(m.Update(tests.Key('c')))
+
+		assert.Equal(t, long, copied, "the complete value, not wrapped")
+		assert.Contains(t, msgs, HeaderValueCopiedMsg{})
+	})
+
+	t.Run("wraps long header values", func(t *testing.T) {
+		token := strings.Repeat("abcdefghij", 8)
+		record := &kadmin.ConsumerRecord{
+			Payload: serdes.DesData{Value: "{}"},
+			Headers: []kadmin.Header{
+				{Key: "trace", Value: kadmin.NewHeaderValue("a long header value with many words that does not fit " + token)},
+			},
+		}
+		ktx := tests.NewKontext(tests.WithWindowWidth(120))
+		m := New(record, "", []kadmin.ConsumerRecord{*record}, 0, clipper.NewMock(), ktx, tabs.NewMockTopicsTabNavigator())
+
+		render := ansi.Strip(m.View(ktx, tests.Renderer))
+
+		// the value is split across lines, but complete
+		assert.NotContains(t, render, token)
+		joined := strings.NewReplacer("│", "", " ", "", "\n", "").Replace(render)
+		assert.Contains(t, joined, "alongheadervaluewithmanywordsthatdoesnotfit"+token)
+	})
+
 	t.Run("c-h or arrows toggles focus between content and headers", func(t *testing.T) {
 		record := &kadmin.ConsumerRecord{
 			Key:       "",

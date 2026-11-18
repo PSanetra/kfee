@@ -63,7 +63,7 @@ type Cluster struct {
 }
 
 func (c *Cluster) HasSchemaRegistry() bool {
-	return c.SchemaRegistry != nil
+	return c != nil && c.SchemaRegistry != nil
 }
 
 func (c *Cluster) HasKafkaConnect() bool {
