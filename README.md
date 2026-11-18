@@ -261,6 +261,18 @@ Multiple clusters can be added.
 Upon startup when no cluster is configured, you will be prompted
 to add one.
 
+#### Confluent Cloud
+
+With the [Confluent CLI](https://docs.confluent.io/confluent-cli/current/install.html) installed, run
+
+```sh
+ktea confluent
+```
+
+to add a Confluent Cloud cluster. The wizard lets you choose the environment and Kafka cluster
+(offering to run `confluent login` when needed), creates an API key described as `ktea <date time>`
+and optionally a second one for the environment's Schema Registry, and saves the cluster to `config.yaml`.
+
 #### TLS support
 
 - TLS can be enabled by setting `tls.enabled` to true in the cluster configuration.

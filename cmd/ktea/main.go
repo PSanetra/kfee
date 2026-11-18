@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"image/color"
+	"ktea/ccloud"
 	"ktea/config"
 	"ktea/kadmin"
 	"ktea/kcadmin"
@@ -434,10 +435,22 @@ func NewModel(
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "confluent" {
+		if err := ccloud.Run(config.New(config.NewDefaultIO())); err != nil {
+			fmt.Fprintln(os.Stderr, "ktea:", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	var (
 		debugParam      debugFlag
 		plainFontsParam bool
 	)
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage:\n  ktea [flags]\n  ktea confluent    add a Confluent Cloud cluster using the Confluent CLI\n\nFlags:\n")
+		flag.PrintDefaults()
+	}
 	flag.Var(&debugParam, "debug", "enable debug logging: --debug writes ./debug.log, --debug=PATH writes to PATH\n(a directory gets PATH/debug.log); --debug PATH with a space is not supported")
 	flag.BoolVar(&plainFontsParam, "plain-fonts", false, "disable NerdFonts (if you see weird icons)")
 	flag.Parse()

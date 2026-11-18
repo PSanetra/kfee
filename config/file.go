@@ -66,6 +66,11 @@ func configPath() string {
 	return filepath.Join(configDir(), "config.yaml")
 }
 
+// Path is the path of the configuration file.
+func Path() string {
+	return configPath()
+}
+
 // ThemesDir is where user themes live, one <name>.yaml per theme.
 func ThemesDir() string {
 	return filepath.Join(configDir(), "themes")
