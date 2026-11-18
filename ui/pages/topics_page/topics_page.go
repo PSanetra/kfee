@@ -127,7 +127,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					TopicName:       topic.Name,
 					PartitionToRead: topic.Partitions(),
 					StartPoint:      kadmin.Live,
-					Limit:           500,
+					Limit:           kadmin.DefaultLimit,
 				},
 			})
 		case "ctrl+f":

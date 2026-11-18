@@ -245,6 +245,17 @@ type ReadDetails struct {
 	Filter          *Filter
 }
 
+// limit is the maximum number of records to read, DefaultLimit when no limit is set.
+func (rd ReadDetails) limit() int64 {
+	if rd.Limit <= 0 {
+		return DefaultLimit
+	}
+	return int64(rd.Limit)
+}
+
+// DefaultLimit is the number of records read by default.
+const DefaultLimit = 500
+
 type HeaderValue struct {
 	data []byte
 }
@@ -254,7 +265,7 @@ func NewDefaultReadDetails(topic *ListedTopic) ReadDetails {
 		TopicName:       topic.Name,
 		PartitionToRead: topic.Partitions(),
 		StartPoint:      MostRecent,
-		Limit:           500,
+		Limit:           DefaultLimit,
 		Filter:          &Filter{},
 	}
 }
@@ -570,12 +581,14 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 							protobuf:  protobuf,
 						}
 
-						if msgCount.Add(1) >= int64(rd.Limit) {
-							select {
-							case startedMsg.ConsumerRecord <- consumerRecord:
-							case <-ctx.Done():
+						// partitions are read concurrently, only the record reaching the limit is still sent
+						if count := msgCount.Add(1); count >= rd.limit() {
+							if count == rd.limit() {
+								select {
+								case startedMsg.ConsumerRecord <- consumerRecord:
+								case <-ctx.Done():
+								}
 							}
-							// Now that the last message is sent (or we're exiting), return.
 							return
 						}
 
@@ -658,7 +671,8 @@ func (ka *SaramaKafkaAdmin) determineReadingOffsets(
 
 	var startOffset int64
 	var endOffset int64
-	numberOfRecordsPerPart := int64(float64(int64(rd.Limit)) / float64(len(rd.PartitionToRead)))
+	// at least one record per partition, the total is capped by the limit while reading
+	numberOfRecordsPerPart := max(rd.limit()/int64(len(rd.PartitionToRead)), 1)
 	if rd.StartPoint == Beginning {
 		startOffset, endOffset = ka.determineOffsetsFromBeginning(
 			offsets,
@@ -684,7 +698,8 @@ func (ka *SaramaKafkaAdmin) determineMostRecentOffsets(
 	numberOfRecordsPerPart int64,
 	endOffset int64,
 ) (int64, int64) {
-	startOffset = offsets.newest() - numberOfRecordsPerPart
+	// both offsets are inclusive
+	startOffset = offsets.newest() - numberOfRecordsPerPart + 1
 	endOffset = offsets.newest()
 	if startOffset < 0 || startOffset < offsets.start {
 		startOffset = offsets.start
@@ -696,16 +711,9 @@ func (ka *SaramaKafkaAdmin) determineOffsetsFromBeginning(
 	offsets offsets,
 	numberOfRecordsPerPart int64,
 ) (int64, int64) {
-	var (
-		startOffset int64
-		endOffset   int64
-	)
-	startOffset = offsets.start
-	if (offsets.start + numberOfRecordsPerPart) < offsets.newest() {
-		endOffset = startOffset + numberOfRecordsPerPart - 1
-	} else {
-		endOffset = offsets.newest()
-	}
+	// both offsets are inclusive
+	startOffset := offsets.start
+	endOffset := min(startOffset+numberOfRecordsPerPart-1, offsets.newest())
 	return startOffset, endOffset
 }
 

@@ -236,7 +236,10 @@ func TestReadRecords(t *testing.T) {
 
 		assertRecords:
 			{
-				assert.Equal(t, 53, slices.Max(receivedRecords))
+				// the 50 most recent records, including the newest one
+				assert.Len(t, receivedRecords, 50)
+				assert.Equal(t, 5, slices.Min(receivedRecords))
+				assert.Equal(t, 54, slices.Max(receivedRecords))
 			}
 
 			// clean up
@@ -956,6 +959,57 @@ type determineStartingOffsetTest struct {
 	offsets     offsets
 }
 
+func TestReadRecordsLimitAcrossPartitions(t *testing.T) {
+	topic := topicName()
+	msg := ka.CreateTopic(TopicCreationDetails{Name: topic, NumPartitions: 5, ReplicationFactor: 1}).(TopicCreationStartedMsg)
+	if _, ok := msg.AwaitCompletion().(TopicCreatedMsg); !ok {
+		t.Fatal("Unable to create topic")
+	}
+	defer ka.DeleteTopic(topic)
+
+	// 120 records per partition
+	for i := 0; i < 600; i++ {
+		partition := i % 5
+		psm := ka.PublishRecord(&ProducerRecord{
+			Topic:     topic,
+			Key:       strconv.Itoa(i),
+			Value:     []byte("{}"),
+			Partition: &partition,
+		})
+		select {
+		case err := <-psm.Err:
+			t.Fatal("Unable to publish", err)
+		case <-psm.Published:
+		}
+	}
+
+	for _, sp := range []StartPoint{MostRecent, Beginning} {
+		rsm := ka.ReadRecords(context.Background(), ReadDetails{
+			TopicName:       topic,
+			PartitionToRead: []int{0, 1, 2, 3, 4},
+			StartPoint:      sp,
+			Limit:           500,
+		}).(*ReadingStartedMsg)
+
+		count := 0
+		timeout := time.After(20 * time.Second)
+	read:
+		for {
+			select {
+			case _, ok := <-rsm.ConsumerRecord:
+				if !ok {
+					break read
+				}
+				count++
+			case <-timeout:
+				t.Fatal("timed out reading records")
+			}
+		}
+
+		assert.Equal(t, 500, count, "start point %d", sp)
+	}
+}
+
 func TestDetermineStartingOffset(t *testing.T) {
 	var tests = []determineStartingOffsetTest{
 		{
@@ -1043,8 +1097,80 @@ func TestDetermineStartingOffset(t *testing.T) {
 			},
 
 			want: want{
-				start: 240,
+				start: 241,
 				end:   290,
+			},
+		},
+		{
+			name: "most recent multiple partitions read the limit in total",
+			readDetails: ReadDetails{
+				TopicName:       "test-topic",
+				PartitionToRead: []int{0, 1, 2, 3, 4},
+				StartPoint:      MostRecent,
+				Limit:           500,
+			},
+			offsets: offsets{
+				start: 0,
+				end:   1000,
+			},
+
+			// 100 records per partition, 500 in total
+			want: want{
+				start: 900,
+				end:   999,
+			},
+		},
+		{
+			name: "an unset limit reads the default number of records",
+			readDetails: ReadDetails{
+				TopicName:       "test-topic",
+				PartitionToRead: []int{0},
+				StartPoint:      MostRecent,
+			},
+			offsets: offsets{
+				start: 0,
+				end:   1000,
+			},
+
+			want: want{
+				start: 1000 - DefaultLimit,
+				end:   999,
+			},
+		},
+		{
+			name: "beginning one more record available than the limit",
+			readDetails: ReadDetails{
+				TopicName:       "test-topic",
+				PartitionToRead: []int{0},
+				StartPoint:      Beginning,
+				Limit:           50,
+			},
+			offsets: offsets{
+				start: 1,
+				end:   52,
+			},
+
+			want: want{
+				start: 1,
+				end:   50,
+			},
+		},
+		{
+			name: "fewer records requested than partitions read at least one record each",
+			readDetails: ReadDetails{
+				TopicName:       "test-topic",
+				PartitionToRead: []int{0, 1, 2, 3},
+				StartPoint:      MostRecent,
+				Limit:           2,
+			},
+			offsets: offsets{
+				start: 0,
+				end:   10,
+			},
+
+			want: want{
+				start: 9,
+				end:   9,
 			},
 		},
 		{
