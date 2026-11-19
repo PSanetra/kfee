@@ -14,10 +14,11 @@ import (
 )
 
 type DefaultSrClient struct {
-	client      *srclient.SchemaRegistryClient
-	subjects    []Subject
-	mu          sync.RWMutex
-	schemaCache map[int]Schema
+	client   *srclient.SchemaRegistryClient
+	subjects []Subject
+	mu       sync.RWMutex
+	// cache keeps the schemas and subjects looked up by schema ID
+	cache *registryCache
 }
 
 type Client interface {
@@ -29,6 +30,8 @@ type Client interface {
 	GlobalCompatibilityLister
 	LatestSchemaBySubjectFetcher
 	SchemaDeleter
+	// SubjectsOfSchema returns the subjects using the schema with the ID, queried once per registry.
+	SubjectsOfSchema(id int) ([]string, error)
 }
 
 type ConnCheckSucceededMsg struct{}
@@ -146,5 +149,6 @@ func New(registryConfig *config.SchemaRegistryConfig) *DefaultSrClient {
 	client := createHttpClient(registryConfig)
 	return &DefaultSrClient{
 		client: srclient.NewSchemaRegistryClient(registryConfig.Url, srclient.WithClient(client)),
+		cache:  newRegistryCache(config.SchemaCacheDir(), registryConfig.Url),
 	}
 }

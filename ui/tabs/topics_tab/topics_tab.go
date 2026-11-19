@@ -120,7 +120,7 @@ func (m *Model) ToCachedConsumptionPage() tea.Cmd {
 }
 
 func (m *Model) ToDecodersPage(d tabs.DecodersPageDetails) tea.Cmd {
-	m.active = decoders_page.New(d.Topic, m.ktx.Config(), m.ktx.Transformer(), m)
+	m.active = decoders_page.New(d.Topic, m.ktx.Config(), m.ktx.Transformer(), m.ktx.ProtoDecoders(), m, d.AvroSchemas)
 	return nil
 }
 

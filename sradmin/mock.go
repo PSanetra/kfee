@@ -21,6 +21,10 @@ type SoftDeletedSubjectMsg struct {
 	Subject string
 }
 
+func (m *MockSrAdmin) SubjectsOfSchema(id int) ([]string, error) {
+	return nil, nil
+}
+
 func (m *MockSrAdmin) DeleteSchema(subject string, version int) tea.Msg {
 	panic("implement me")
 }
