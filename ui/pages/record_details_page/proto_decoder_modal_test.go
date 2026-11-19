@@ -281,6 +281,32 @@ func TestProtoDecoderModal(t *testing.T) {
 	})
 }
 
+// The regex input must stay in place after moving its cursor, even when the
+// description of the stage wraps at a narrow width.
+func TestProtoDecoderModalRegexStaysVisibleOnCursorMove(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.ProtobufConfig{Topics: []config.ProtobufTopicConfig{{Topic: "other", ProtoDir: dir}}}
+	compileOk := func(protoc, dir string) (*serdes.ProtoSchema, error) {
+		return fakeSchema(dir), nil
+	}
+	m := newModal(t, cfg, compileOk)
+	send(m, tests.Ctrl('s'))
+	send(m, tests.Key(tea.KeyEnter))
+	send(m, tests.Key(tea.KeyDown))
+	send(m, tests.Key(tea.KeyDown))
+	send(m, tests.Key(tea.KeyEnter))
+	require.Equal(t, stageRegex, m.stage)
+
+	const width = 60
+	before := ansi.Strip(m.View(width))
+	require.Contains(t, before, "Value regex of header type")
+	require.Contains(t, before, "^OrderCancelled$")
+	require.Contains(t, before, "decoded as")
+
+	send(m, tests.Key(tea.KeyLeft))
+	assert.Equal(t, before, ansi.Strip(m.View(width)))
+}
+
 func TestRecordDetailsPageProtobuf(t *testing.T) {
 	newPage := func(t *testing.T) (*Model, *config.Config) {
 		t.Helper()

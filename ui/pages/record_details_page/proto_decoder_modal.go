@@ -203,7 +203,6 @@ func (m *protoDecoderModal) toStage(stage protoStage) {
 		field = huh.NewSelect[string]().
 			Value(&v.header).
 			Title("Discriminator header").
-			Description("Decode records " + m.decodedAs() + " only when this header matches").
 			Height(min(len(options)+3, 14)).
 			Options(options...)
 	case stageRegex:
@@ -213,8 +212,7 @@ func (m *protoDecoderModal) toStage(stage protoStage) {
 		}
 		field = huh.NewInput().
 			Value(&v.regex).
-			Title("Value regex of header " + v.header).
-			Description("Records whose " + v.header + " header matches are decoded " + m.decodedAs())
+			Title("Value regex of header " + v.header)
 	}
 
 	m.form = huh.NewForm(huh.NewGroup(field)).WithTheme(styles.Huh).WithShowHelp(false)
@@ -486,6 +484,11 @@ func (m *protoDecoderModal) View(windowWidth int) string {
 	case m.form == nil:
 		parts = append(parts, "⏳ Compiling .proto files in "+m.values.dir+" …")
 	default:
+		// descriptions are wrapped here: huh does not wrap them to the modal width,
+		// which makes the form layout shift and clip its fields
+		if desc := m.description(); desc != "" {
+			parts = append(parts, styles.Help.Footer.Width(width).Render(desc))
+		}
 		m.form.WithWidth(width)
 		parts = append(parts, m.form.View())
 	}
@@ -495,6 +498,17 @@ func (m *protoDecoderModal) View(windowWidth int) string {
 	}
 	parts = append(parts, "", styles.Help.Footer.Width(width).Render(m.footer()))
 	return styles.Help.Modal.Render(lg.JoinVertical(lg.Left, parts...))
+}
+
+// description explains the field of the current stage, empty if there is none.
+func (m *protoDecoderModal) description() string {
+	switch m.stage {
+	case stageHeader:
+		return "Decode records " + m.decodedAs() + " only when this header matches"
+	case stageRegex:
+		return "Records whose " + m.values.header + " header matches are decoded " + m.decodedAs()
+	}
+	return ""
 }
 
 func (m *protoDecoderModal) footer() string {
