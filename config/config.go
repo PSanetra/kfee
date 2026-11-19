@@ -76,6 +76,10 @@ type Config struct {
 	PlainFonts bool      `yaml:"plainFonts"`
 	// Theme is a built-in theme or the name of a file in ThemesDir() (without .yaml).
 	Theme string `yaml:"theme,omitempty"`
+	// LLM generates transformations of decoded records, nil when not configured.
+	LLM *LLMConfig `yaml:"llm,omitempty"`
+	// TransformationHistory is how many applied transformations are kept per decoder rule.
+	TransformationHistory int `yaml:"transformationHistory,omitempty"`
 }
 
 func (c *Config) HasClusters() bool {

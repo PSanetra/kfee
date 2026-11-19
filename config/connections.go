@@ -17,9 +17,11 @@ import (
 
 // configFile is the content of config.yaml.
 type configFile struct {
-	Clusters   []clusterFile `yaml:"clusters"`
-	PlainFonts bool          `yaml:"plainFonts"`
-	Theme      string        `yaml:"theme,omitempty"`
+	Clusters              []clusterFile `yaml:"clusters"`
+	PlainFonts            bool          `yaml:"plainFonts"`
+	Theme                 string        `yaml:"theme,omitempty"`
+	LLM                   *LLMConfig    `yaml:"llm,omitempty"`
+	TransformationHistory int           `yaml:"transformationHistory,omitempty"`
 }
 
 type clusterFile struct {
@@ -47,7 +49,7 @@ type connection struct {
 var connectionKeys = []string{"servers", "sasl", "tls", "schemaRegistry", "kafkaConnectClusters"}
 
 func splitConfig(c *Config) (configFile, connectionsFile) {
-	cfg := configFile{PlainFonts: c.PlainFonts, Theme: c.Theme}
+	cfg := configFile{PlainFonts: c.PlainFonts, Theme: c.Theme, LLM: c.LLM, TransformationHistory: c.TransformationHistory}
 	connections := connectionsFile{Clusters: map[string]connection{}}
 	for _, cluster := range c.Clusters {
 		cfg.Clusters = append(cfg.Clusters, clusterFile{
@@ -69,7 +71,7 @@ func splitConfig(c *Config) (configFile, connectionsFile) {
 
 // joinConfig combines both files. Clusters only present in connections.yaml are added as well.
 func joinConfig(cfg configFile, connections connectionsFile) *Config {
-	c := &Config{PlainFonts: cfg.PlainFonts, Theme: cfg.Theme}
+	c := &Config{PlainFonts: cfg.PlainFonts, Theme: cfg.Theme, LLM: cfg.LLM, TransformationHistory: cfg.TransformationHistory}
 	seen := map[string]bool{}
 	for _, cf := range cfg.Clusters {
 		seen[cf.Name] = true

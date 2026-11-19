@@ -531,7 +531,7 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 		desData, protobuf, err := ka.deserialize(msg.Topic, headers, msg.Value)
 
 		// non-matching records are dropped right away
-		if rd.Filter != nil && err == nil && !rd.Filter.Matches(key, desData.Value, headers) {
+		if rd.Filter != nil && err == nil && !ka.matchesRecord(rd.Filter, msg.Topic, key, desData, headers) {
 			return ConsumerRecord{}, false
 		}
 

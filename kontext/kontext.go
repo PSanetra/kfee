@@ -3,12 +3,15 @@ package kontext
 import (
 	"kfee/config"
 	"kfee/serdes"
+	"kfee/transformation"
 )
 
 type ProgramKtx struct {
 	config *config.Config
 	// protoDecoders are the protobuf decoders of the active cluster
 	protoDecoders *serdes.ProtobufDecoders
+	// transformer applies the saved transformations of the active cluster
+	transformer *transformation.Transformer
 	cmdLineFlags
 	WindowWidth     int
 	WindowHeight    int
@@ -46,6 +49,15 @@ func (k *ProgramKtx) ProtoDecoders() *serdes.ProtobufDecoders {
 
 func (k *ProgramKtx) SetProtoDecoders(decoders *serdes.ProtobufDecoders) {
 	k.protoDecoders = decoders
+}
+
+// Transformer returns the transformations of the active cluster, nil when there are none.
+func (k *ProgramKtx) Transformer() *transformation.Transformer {
+	return k.transformer
+}
+
+func (k *ProgramKtx) SetTransformer(transformer *transformation.Transformer) {
+	k.transformer = transformer
 }
 
 func (k *ProgramKtx) RegisterConfig(c *config.Config) {

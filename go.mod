@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.10
 	github.com/dustin/go-humanize v1.1.0
 	github.com/google/uuid v1.6.0
+	github.com/itchyny/gojq v0.12.20
 	github.com/linkedin/goavro/v2 v2.15.0
 	github.com/moby/moby/api v1.56.1
 	github.com/muesli/reflow v0.3.0
@@ -38,6 +39,7 @@ require (
 	github.com/docker/compose/v5 v5.2.0 // indirect
 	github.com/docker/go-connections v0.8.2 // indirect
 	github.com/in-toto/attestation v1.2.0 // indirect
+	github.com/itchyny/timefmt-go v0.1.9 // indirect
 	github.com/mdelapenya/tlscert v0.2.0 // indirect
 	github.com/moby/moby/client v0.6.2 // indirect
 	github.com/onsi/gomega v1.38.2 // indirect
@@ -126,7 +128,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/magiconair/properties v1.18.12 // indirect
-	github.com/mattn/go-runewidth v0.0.30 // indirect
+	github.com/mattn/go-runewidth v0.0.31 // indirect
 	github.com/mattn/go-shellwords v1.0.13 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/moby/buildkit v0.31.1 // indirect

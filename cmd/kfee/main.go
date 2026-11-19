@@ -12,6 +12,7 @@ import (
 	"kfee/serdes"
 	"kfee/sradmin"
 	"kfee/styles"
+	"kfee/transformation"
 	"kfee/ui"
 	"kfee/ui/components/help"
 	"kfee/ui/components/statusbar"
@@ -367,6 +368,10 @@ func (m *Model) recreateAdminClients(cluster *config.Cluster) error {
 	protoDecoders := serdes.NewProtobufDecoders(cluster.Protobuf)
 	m.ktx.SetProtoDecoders(protoDecoders)
 	m.ka.SetProtoDecoders(protoDecoders)
+	transformer := transformation.NewTransformer(
+		transformation.Store{Dir: config.TransformationsDir()}, cluster.Name)
+	m.ktx.SetTransformer(transformer)
+	m.ka.SetTransformer(transformer)
 
 	if cluster.HasSchemaRegistry() {
 		m.sra = sradmin.New(m.ktx.Config().ActiveCluster().SchemaRegistry)

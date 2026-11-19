@@ -69,6 +69,9 @@ func (m MockKadmin) SetSra(sra sradmin.Client) {
 func (m MockKadmin) SetProtoDecoders(decoders *serdes.ProtobufDecoders) {
 }
 
+func (m MockKadmin) SetTransformer(transformer Transformer) {
+}
+
 func (m MockKadmin) GetClusterConfig() tea.Msg {
 	return nil
 }
