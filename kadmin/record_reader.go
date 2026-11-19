@@ -782,6 +782,9 @@ func (ka *SaramaKafkaAdmin) deserialize(
 	}
 	deserializer := serdes.NewAvroDeserializer(ka.sra)
 	data, err = deserializer.Deserialize(value)
+	if err == nil && data.SchemaID != 0 {
+		data.RuleID = ka.avroDecoderID(topic, data.SchemaID)
+	}
 	return data, false, err
 }
 

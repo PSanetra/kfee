@@ -278,6 +278,10 @@ func (m *Model) chooseLLM(command []string, promptAsArgument bool) tea.Cmd {
 
 // describeSchema describes the message type of the record for the prompt of the LLM.
 func (m *Model) describeSchema() (string, error) {
+	// Avro records carry their schema
+	if m.record.Payload.Schema != "" {
+		return m.record.Payload.Schema, nil
+	}
 	if m.record.Payload.MessageType == serdes.RawMessageType {
 		return "Protobuf without schema: the keys of the JSON are field numbers.", nil
 	}
