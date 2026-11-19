@@ -34,8 +34,12 @@ func (msg *GettingSchemaByIdMsg) AwaitCompletion() tea.Msg {
 }
 
 func (s *DefaultSrClient) GetSchemaById(id int) tea.Msg {
-	if schema, ok := s.schemaCache[id]; ok {
-		return SchemaByIdReceived{Schema: schema}
+	if cached, ok := s.cache.schema(id); ok {
+		return SchemaByIdReceived{Schema: Schema{
+			Id:      strconv.Itoa(id),
+			Value:   cached.Schema,
+			Version: cached.Version,
+		}}
 	}
 	schemaChan := make(chan Schema)
 	errChan := make(chan error)
@@ -53,10 +57,33 @@ func (s *DefaultSrClient) doGetSchemaById(id int, schemaChan chan Schema, errCha
 		errChan <- err
 		return
 	}
+	s.cache.putSchema(id, schema.Schema(), schema.Version())
 	schemaChan <- Schema{
 		Id:      strconv.Itoa(schema.ID()),
 		Value:   schema.Schema(),
 		Version: schema.Version(),
 		Err:     nil,
 	}
+}
+
+// SubjectsOfSchema returns the subjects using the schema with the ID, in the order the registry
+// lists them. The registry is only queried when the subjects are not cached yet.
+func (s *DefaultSrClient) SubjectsOfSchema(id int) ([]string, error) {
+	if subjects, ok := s.cache.subjects(id); ok {
+		return subjects, nil
+	}
+	pairs, err := s.client.GetSubjectVersionsById(id)
+	if err != nil {
+		return nil, err
+	}
+	var subjects []string
+	seen := map[string]bool{}
+	for _, pair := range pairs {
+		if !seen[pair.Subject] {
+			seen[pair.Subject] = true
+			subjects = append(subjects, pair.Subject)
+		}
+	}
+	s.cache.putSubjects(id, subjects)
+	return subjects, nil
 }

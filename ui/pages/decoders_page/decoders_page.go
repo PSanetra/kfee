@@ -1,10 +1,11 @@
-// Package decoders_page lists the protobuf decoders of a topic and the transformations saved for them.
+// Package decoders_page lists the decoders of a topic and the transformations saved for them.
 package decoders_page
 
 import (
 	"fmt"
 	"kfee/config"
 	"kfee/kontext"
+	"kfee/serdes"
 	"kfee/styles"
 	"kfee/transformation"
 	"kfee/ui"
@@ -12,32 +13,61 @@ import (
 	"kfee/ui/components/statusbar"
 	ktable "kfee/ui/components/table"
 	"kfee/ui/tabs"
+	"maps"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
 )
 
-// Model lists the decoder rules of a topic. Selecting a rule shows the transformations saved for it,
-// the latest one is the one applied. A transformation can be activated again, which moves it to the latest position.
+// avroPrefix marks the decoder ID of an Avro subject, see serdes and kadmin.
+const avroPrefix = "avro:"
+
+// decoder is a protobuf rule of the topic or an Avro subject seen on its records.
+type decoder struct {
+	// id is the key of the transformations of the decoder
+	id      string
+	match   string
+	decodes string
+	// schema is the schema the decoder decodes with, shown next to the transformations
+	schema string
+}
+
+// Model lists the decoders of a topic. Selecting a decoder shows its schema and the transformations
+// saved for it, the latest one is the one applied. A transformation can be activated again, which
+// moves it to the latest position.
 type Model struct {
 	topic       string
 	cluster     string
-	rules       []config.ProtobufRule
+	decoders    []decoder
 	history     map[string][]transformation.Entry
 	store       transformation.Store
 	transformer *transformation.Transformer
 	table       table.Model
 	detail      bool
-	// entry is the position in the history of the selected rule, oldest first
+	// focusSchema is set while the schema is focused, otherwise the transformations are
+	focusSchema bool
+	// schemaVp shows the schema of the selected decoder, scrollable
+	schemaVp *viewport.Model
+	// entry is the position in the history of the selected decoder, oldest first
 	entry     int
 	navigator tabs.TopicsTabNavigator
 }
 
-// New lists the decoders of the topic in the active cluster of cfg. The transformer, when not nil,
-// is invalidated after a transformation was activated.
-func New(topic string, cfg *config.Config, transformer *transformation.Transformer, navigator tabs.TopicsTabNavigator) *Model {
+// New lists the decoders of the topic in the active cluster of cfg: its protobuf rules, described
+// with protoDecoders, and the Avro decoders seen on its records, given by their IDs with the schema
+// of their records. The transformer, when not nil, is invalidated after a transformation was activated.
+func New(
+	topic string,
+	cfg *config.Config,
+	transformer *transformation.Transformer,
+	protoDecoders *serdes.ProtobufDecoders,
+	navigator tabs.TopicsTabNavigator,
+	avroSchemas map[string]string,
+) *Model {
 	m := &Model{
 		topic:       topic,
 		history:     map[string][]transformation.Entry{},
@@ -49,30 +79,43 @@ func New(topic string, cfg *config.Config, transformer *transformation.Transform
 	if cluster := cfg.ActiveCluster(); cluster != nil {
 		m.cluster = cluster.Name
 		if t := cluster.Protobuf.Topic(topic); t != nil {
-			m.rules = t.Rules
+			for _, rule := range t.Rules {
+				m.decoders = append(m.decoders, decoder{
+					id:      rule.ID,
+					match:   matchOf(rule),
+					decodes: decodedAs(rule),
+					schema:  protoSchema(protoDecoders, topic, rule),
+				})
+			}
 		}
-		for _, rule := range m.rules {
-			// unreadable histories are shown as having none, the record view reports the error
-			entries, _ := m.store.Load(cluster.Name, topic, rule.ID)
-			m.history[rule.ID] = entries
-		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(avroSchemas)) {
+		subject := strings.TrimPrefix(id, avroPrefix)
+		m.decoders = append(m.decoders, decoder{
+			id:      id,
+			match:   "Avro schema of " + subject,
+			decodes: "Avro",
+			schema:  ui.FormatPayload(avroSchemas[id]),
+		})
+	}
+	for _, d := range m.decoders {
+		// unreadable histories are shown as having none, the record view reports the error
+		entries, _ := m.store.Load(m.cluster, topic, d.id)
+		m.history[d.id] = entries
 	}
 	return m
 }
 
 func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
-	if m.detail && len(m.rules) > 0 {
-		b := border.New(border.WithTitleFn(func() string {
-			return border.Title("Transformations · "+describeRule(m.selected()), false)
-		}))
-		return renderer.Render(b.View(lg.NewStyle().Width(ktx.WindowWidth - 4).Render(m.detailView())))
+	if m.detail && len(m.decoders) > 0 {
+		return renderer.Render(m.detailView(ktx))
 	}
 
 	b := border.New(border.WithTitleFn(func() string {
 		return border.Title("Decoders of "+m.topic, false)
 	}))
-	if len(m.rules) == 0 {
-		msg := "No protobuf decoder configured for this topic. Add one from a record with p."
+	if len(m.decoders) == 0 {
+		msg := "No decoder known for this topic. Protobuf decoders are added from a record with p, Avro decoders show up once records are read."
 		return renderer.Render(b.View(lg.NewStyle().Foreground(styles.Current.TextMuted).Render(msg)))
 	}
 
@@ -85,17 +128,44 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		{Title: "Latest transformation", Width: max(width-3-width*35/100-width*30/100, 10)},
 	})
 	var rows []table.Row
-	for i, rule := range m.rules {
+	for i, d := range m.decoders {
 		rows = append(rows, table.Row{
 			fmt.Sprint(i + 1),
-			matchOf(rule),
-			decodedAs(rule),
-			m.latest(rule),
+			d.match,
+			d.decodes,
+			m.latest(d),
 		})
 	}
 	m.table.SetRows(rows)
 	m.table.SetHeight(ktx.AvailableHeight - 2)
 	return renderer.Render(b.View(ktable.View(&m.table)))
+}
+
+// detailView is the selected decoder: the schema on the left, scrollable, the transformations on the
+// right. Like the record view, h, left and right switch the focus, the focused pane takes the keys.
+func (m *Model) detailView(ktx *kontext.ProgramKtx) string {
+	width := ktx.WindowWidth - 4
+	leftWidth := width * 45 / 100
+	rightWidth := width - leftWidth - 2
+	height := max(ktx.AvailableHeight-2, 6)
+
+	m.schemaVp.SetWidth(leftWidth - 2)
+	m.schemaVp.SetHeight(height - 2)
+	schemaBorder := border.New(border.WithTitleFn(func() string {
+		return border.Title("Schema", false)
+	}))
+	schemaBorder.Focused = m.focusSchema
+
+	transformationsBorder := border.New(border.WithTitleFn(func() string {
+		return border.Title("Transformations · "+m.selected().describe(), false)
+	}))
+	transformationsBorder.Focused = !m.focusSchema
+
+	left := lg.NewStyle().Width(leftWidth).Render(schemaBorder.View(m.schemaVp.View()))
+	right := lg.NewStyle().Width(rightWidth).MaxHeight(height).Render(
+		transformationsBorder.View(lg.NewStyle().Width(rightWidth - 2).Render(m.detailText())),
+	)
+	return lg.JoinHorizontal(lg.Top, left, right)
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -107,9 +177,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case "esc":
 			return m.navigator.ToCachedConsumptionPage()
 		case "enter":
-			if len(m.rules) > 0 {
-				m.detail = true
-				m.entry = max(len(m.history[m.selected().ID])-1, 0)
+			if len(m.decoders) > 0 {
+				m.openDetail()
 			}
 			return nil
 		}
@@ -119,12 +188,36 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// updateDetail moves the entry cursor, activates the entry under it or goes back to the decoders.
+// openDetail shows the selected decoder, its schema is focused and starts at the top.
+func (m *Model) openDetail() {
+	m.detail = true
+	m.focusSchema = true
+	m.entry = max(len(m.history[m.selected().id])-1, 0)
+	vp := viewport.New(viewport.WithWidth(1), viewport.WithHeight(1))
+	vp.SetContent(m.selected().schema)
+	m.schemaVp = &vp
+}
+
+// updateDetail toggles the focus, scrolls the schema or moves through the transformations, and
+// activates the transformation under the cursor. esc goes back to the decoders.
 func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
-	history := m.history[m.selected().ID]
 	switch key.String() {
 	case "esc":
 		m.detail = false
+		return nil
+	case "h", "left", "right":
+		m.focusSchema = !m.focusSchema
+		return nil
+	}
+
+	if m.focusSchema {
+		vp, cmd := m.schemaVp.Update(key)
+		m.schemaVp = &vp
+		return cmd
+	}
+
+	history := m.history[m.selected().id]
+	switch key.String() {
 	case "up":
 		// the newest entry is drawn at the top, so up goes to the next newer entry
 		m.entry = min(m.entry+1, len(history)-1)
@@ -138,15 +231,15 @@ func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
 
 // activate removes the selected entry from its position and appends it again with the current time.
 func (m *Model) activate() {
-	rule := m.selected()
-	if len(m.history[rule.ID]) == 0 {
+	d := m.selected()
+	if len(m.history[d.id]) == 0 {
 		return
 	}
-	history, err := m.store.Activate(m.cluster, m.topic, rule.ID, m.entry)
+	history, err := m.store.Activate(m.cluster, m.topic, d.id, m.entry)
 	if err != nil {
 		return
 	}
-	m.history[rule.ID] = history
+	m.history[d.id] = history
 	m.entry = len(history) - 1
 	if m.transformer != nil {
 		m.transformer.Invalidate(m.topic)
@@ -155,11 +248,16 @@ func (m *Model) activate() {
 
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	if m.detail {
-		return []statusbar.Shortcut{
-			{Name: "Move", Keybinding: "↑/↓"},
-			{Name: "Activate", Keybinding: "a/enter"},
-			{Name: "Back", Keybinding: "esc"},
+		shortcuts := []statusbar.Shortcut{{Name: "Toggle Schema/Transformations", Keybinding: "h/←/→"}}
+		if m.focusSchema {
+			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Scroll", Keybinding: "↑/↓"})
+		} else {
+			shortcuts = append(shortcuts,
+				statusbar.Shortcut{Name: "Move", Keybinding: "↑/↓"},
+				statusbar.Shortcut{Name: "Activate", Keybinding: "a/enter"},
+			)
 		}
+		return append(shortcuts, statusbar.Shortcut{Name: "Back", Keybinding: "esc"})
 	}
 	return []statusbar.Shortcut{
 		{Name: "Show Transformations", Keybinding: "enter"},
@@ -171,15 +269,15 @@ func (m *Model) Title() string {
 	return "Topics / " + m.topic + " / Decoders"
 }
 
-// selected is the rule under the cursor.
-func (m *Model) selected() config.ProtobufRule {
-	i := min(max(m.table.Cursor(), 0), len(m.rules)-1)
-	return m.rules[i]
+// selected is the decoder under the cursor.
+func (m *Model) selected() decoder {
+	i := min(max(m.table.Cursor(), 0), len(m.decoders)-1)
+	return m.decoders[i]
 }
 
-// latest is the filter applied last to the rule, or a hint when there is none.
-func (m *Model) latest(rule config.ProtobufRule) string {
-	history := m.history[rule.ID]
+// latest is the filter applied last to the decoder, or a hint when there is none.
+func (m *Model) latest(d decoder) string {
+	history := m.history[d.id]
 	if len(history) == 0 {
 		return "none"
 	}
@@ -188,18 +286,18 @@ func (m *Model) latest(rule config.ProtobufRule) string {
 	return last.Applied.Local().Format("2006-01-02 15:04") + "  " + filter
 }
 
-// detailView lists the transformations of the selected rule, the latest one first. The entry
+// detailText lists the transformations of the selected decoder, the latest one first. The entry
 // under the cursor is marked with >, the latest one with ▶.
-func (m *Model) detailView() string {
-	rule := m.selected()
-	history := m.history[rule.ID]
-	lines := []string{styles.Help.Footer.Render("id " + rule.ID), ""}
+func (m *Model) detailText() string {
+	d := m.selected()
+	history := m.history[d.id]
+	lines := []string{styles.Help.Footer.Render("id " + d.id), ""}
 	if len(history) == 0 {
 		lines = append(lines, "No transformation saved for this decoder. Press e in a record to add one.")
 	}
 	for j := len(history) - 1; j >= 0; j-- {
 		cursor := "  "
-		if j == m.entry {
+		if j == m.entry && !m.focusSchema {
 			cursor = "> "
 		}
 		marker := " "
@@ -215,7 +313,19 @@ func (m *Model) detailView() string {
 	return strings.Join(lines, "\n")
 }
 
-// matchOf tells which records the rule decodes.
+// protoSchema describes the message type of a protobuf rule, or says that the rule decodes without schema.
+func protoSchema(protoDecoders *serdes.ProtobufDecoders, topic string, rule config.ProtobufRule) string {
+	if rule.Raw {
+		return "Protobuf without schema: the keys of the JSON are field numbers."
+	}
+	described, err := protoDecoders.Describe(topic, rule.MessageType)
+	if err != nil {
+		return "Unable to describe the schema: " + err.Error()
+	}
+	return described
+}
+
+// matchOf tells which records the protobuf rule decodes.
 func matchOf(rule config.ProtobufRule) string {
 	if rule.IsFallback() {
 		return "all records"
@@ -223,7 +333,7 @@ func matchOf(rule config.ProtobufRule) string {
 	return fmt.Sprintf("header %s matches %s", rule.Header, rule.ValueRegex)
 }
 
-// decodedAs tells how the rule decodes the records.
+// decodedAs tells how the protobuf rule decodes the records.
 func decodedAs(rule config.ProtobufRule) string {
 	if rule.Raw {
 		return "without schema"
@@ -231,7 +341,7 @@ func decodedAs(rule config.ProtobufRule) string {
 	return rule.MessageType
 }
 
-// describeRule tells which records the rule decodes and how.
-func describeRule(rule config.ProtobufRule) string {
-	return matchOf(rule) + " → " + decodedAs(rule)
+// describe tells which records the decoder decodes and how.
+func (d decoder) describe() string {
+	return d.match + " → " + d.decodes
 }

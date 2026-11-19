@@ -18,6 +18,7 @@ import (
 	"kfee/ui/tabs"
 	"sort"
 	"strconv"
+	"strings"
 
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
@@ -178,7 +179,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.search = newSearchModal(m.topic, m.readDetails, msg.String() == "ctrl+f")
 			return nil
 		} else if msg.String() == "d" && !m.cmdBar.IsFocussed() {
-			return m.navigator.ToDecodersPage(tabs.DecodersPageDetails{Topic: m.readDetails.TopicName})
+			return m.navigator.ToDecodersPage(tabs.DecodersPageDetails{Topic: m.readDetails.TopicName, AvroSchemas: m.avroSchemas()})
 		} else if msg.String() == "t" && !m.cmdBar.IsFocussed() && m.selectedRecord() != nil {
 			record := m.selectedRecord()
 			m.preview.toggleOriginal(record)
@@ -431,6 +432,20 @@ func (m *Model) withCopyShortcut(shortcuts []statusbar.Shortcut) []statusbar.Sho
 		return shortcuts
 	}
 	return append(shortcuts[:1:1], append([]statusbar.Shortcut{{Name: "Copy Record", Keybinding: "c"}}, shortcuts[1:]...)...)
+}
+
+// avroSchemas are the Avro decoder IDs of the loaded records with the schema of their records.
+func (m *Model) avroSchemas() map[string]string {
+	schemas := map[string]string{}
+	for _, record := range m.records {
+		id := record.Payload.RuleID
+		if strings.HasPrefix(id, "avro:") {
+			if _, ok := schemas[id]; !ok {
+				schemas[id] = record.Payload.Schema
+			}
+		}
+	}
+	return schemas
 }
 
 // SetTransformer applies the transformations of the topic to the records shown in the preview.

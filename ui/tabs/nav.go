@@ -35,7 +35,9 @@ type ConsumePageDetails struct {
 }
 
 type DecodersPageDetails struct {
-	Topic string
+	// AvroSchemas are the Avro decoder IDs seen on the loaded records of the topic, with their schema
+	AvroSchemas map[string]string
+	Topic       string
 }
 
 type RecordDetailsPageDetails struct {

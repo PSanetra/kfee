@@ -131,6 +131,25 @@ func resolveDataDir(xdgDataHome string, homeDir func() (string, error)) string {
 	return filepath.Join(home, ".local", "share", "kfee", "transformations")
 }
 
+// SchemaCacheDir is where the schemas and subjects looked up by schema ID are cached across sessions.
+// Schema IDs are immutable, so the cache can be deleted at any time without harm.
+func SchemaCacheDir() string {
+	return resolveCacheDir(os.Getenv("XDG_CACHE_HOME"), os.UserHomeDir)
+}
+
+func resolveCacheDir(xdgCacheHome string, homeDir func() (string, error)) string {
+	// relative paths are invalid according to the XDG Base Directory Specification
+	if filepath.IsAbs(xdgCacheHome) {
+		return filepath.Join(xdgCacheHome, "kfee", "schemas")
+	}
+	home, err := homeDir()
+	if err != nil {
+		fmt.Println("Error getting home directory:", err)
+		os.Exit(-1)
+	}
+	return filepath.Join(home, ".cache", "kfee", "schemas")
+}
+
 // configDir is $XDG_CONFIG_HOME/kfee when XDG_CONFIG_HOME is set to an absolute path,
 // ~/.config/kfee otherwise, also on macOS as common for command line tools.
 func configDir() string {
