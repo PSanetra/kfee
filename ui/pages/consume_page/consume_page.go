@@ -7,6 +7,7 @@ import (
 	"kfee/kontext"
 	"kfee/serdes"
 	"kfee/styles"
+	"kfee/transformation"
 	"kfee/ui"
 	"kfee/ui/clipper"
 	"kfee/ui/components/border"
@@ -176,9 +177,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		} else if (msg.String() == "/" || msg.String() == "ctrl+f") && !m.cmdBar.IsFocussed() {
 			m.search = newSearchModal(m.topic, m.readDetails, msg.String() == "ctrl+f")
 			return nil
+		} else if msg.String() == "d" && !m.cmdBar.IsFocussed() {
+			return m.navigator.ToDecodersPage(tabs.DecodersPageDetails{Topic: m.readDetails.TopicName})
+		} else if msg.String() == "t" && !m.cmdBar.IsFocussed() && m.selectedRecord() != nil {
+			record := m.selectedRecord()
+			m.preview.toggleOriginal(record)
+			return m.preview.request(record)
 		} else if msg.String() == "c" && m.canCopy() {
 			record := m.selectedRecord()
-			m.preview.copied(record, m.clipWriter.Write(copyablePayload(record)))
+			m.preview.copied(record, m.clipWriter.Write(m.preview.copyable(record)))
 			return nil
 		} else if msg.String() == "f2" {
 			m.cancelConsumption()
@@ -367,7 +374,17 @@ func (m *Model) createRows() []table.Row {
 	return rows
 }
 
+// Shortcuts lists the keys of the page, the decoders can be opened unless a search or a
+// command bar like sorting is in use.
 func (m *Model) Shortcuts() []statusbar.Shortcut {
+	shortcuts := m.pageShortcuts()
+	if m.search != nil || m.cmdBar.IsFocussed() {
+		return shortcuts
+	}
+	return append(shortcuts, statusbar.Shortcut{Name: "Decoders", Keybinding: "d"})
+}
+
+func (m *Model) pageShortcuts() []statusbar.Shortcut {
 	if m.search != nil {
 		return m.search.Shortcuts()
 	}
@@ -403,10 +420,23 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 
 // withCopyShortcut adds the copy shortcut while the preview shows a payload.
 func (m *Model) withCopyShortcut(shortcuts []statusbar.Shortcut) []statusbar.Shortcut {
+	if record := m.selectedRecord(); m.preview.hasTransformation(record) {
+		name := "Show Transformed"
+		if m.preview.showOriginal {
+			name = "Show Original"
+		}
+		shortcuts = append(shortcuts, statusbar.Shortcut{Name: name, Keybinding: "t"})
+	}
 	if !m.canCopy() {
 		return shortcuts
 	}
 	return append(shortcuts[:1:1], append([]statusbar.Shortcut{{Name: "Copy Record", Keybinding: "c"}}, shortcuts[1:]...)...)
+}
+
+// SetTransformer applies the transformations of the topic to the records shown in the preview.
+func (m *Model) SetTransformer(transformer *transformation.Transformer, topic string) {
+	m.preview.transformer = transformer
+	m.preview.topic = topic
 }
 
 func (m *Model) Title() string {

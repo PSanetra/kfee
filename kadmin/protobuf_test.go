@@ -4,6 +4,7 @@ import (
 	"context"
 	"kfee/config"
 	"kfee/serdes"
+	"kfee/transformation"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,8 +52,8 @@ message OrderCancelled { string id = 1; string reason = 2; }
 		Topic:    topic,
 		ProtoDir: dir,
 		Rules: []config.ProtobufRule{
-			{MessageType: "acme.OrderCancelled", Header: "type", ValueRegex: "^OrderCancelled$"},
-			{MessageType: "acme.OrderCreated"},
+			{ID: "cancelled", MessageType: "acme.OrderCancelled", Header: "type", ValueRegex: "^OrderCancelled$"},
+			{ID: "created", MessageType: "acme.OrderCreated"},
 		},
 	}
 	decoders := serdes.NewProtobufDecoders(&config.ProtobufConfig{Topics: []config.ProtobufTopicConfig{topicCfg}})
@@ -101,6 +102,30 @@ message OrderCancelled { string id = 1; string reason = 2; }
 		records := read(&Filter{Term: "late"})
 
 		assert.Len(t, records, 1)
+		assert.Contains(t, records, "2")
+	})
+
+	t.Run("searches the transformed value of a rule", func(t *testing.T) {
+		// the transformation of the cancelled rule says "delayed" for late orders
+		store := transformation.Store{Dir: t.TempDir()}
+		_, err := store.Append("prd", topic, "cancelled", transformation.Entry{
+			Source: transformation.SourceManual,
+			Filter: `{status: (if .reason == "late" then "delayed" else "other" end)}`,
+		})
+		require.NoError(t, err)
+		ka.SetTransformer(transformation.NewTransformer(store, "prd"))
+		defer ka.SetTransformer(nil)
+
+		records := read(&Filter{Term: "delayed"})
+		assert.Len(t, records, 1)
+		assert.Contains(t, records, "2")
+
+		assert.Empty(t, read(&Filter{Term: "zzz"}))
+
+		// the value filter matches the transformed or the original value
+		records = read(&Filter{ValueFilter: ContainsFilterType, ValueSearchTerm: "delayed"})
+		assert.Contains(t, records, "2")
+		records = read(&Filter{ValueFilter: ContainsFilterType, ValueSearchTerm: "late"})
 		assert.Contains(t, records, "2")
 	})
 

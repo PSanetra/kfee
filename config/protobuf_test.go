@@ -102,8 +102,8 @@ func TestProtobufTopics(t *testing.T) {
 			Topic:    "orders",
 			ProtoDir: "~/protos",
 			Rules: []ProtobufRule{
-				{MessageType: "acme.OrderCreated", Header: "type", ValueRegex: "^OrderCreated$"},
-				{MessageType: "acme.Order"},
+				{ID: "r1", MessageType: "acme.OrderCreated", Header: "type", ValueRegex: "^OrderCreated$"},
+				{ID: "r2", MessageType: "acme.Order"},
 			},
 		})
 
@@ -114,10 +114,12 @@ func TestProtobufTopics(t *testing.T) {
     - topic: orders
       protoDir: ~/protos
       rules:
-        - messageType: acme.OrderCreated
+        - id: r1
+          messageType: acme.OrderCreated
           header: type
           valueRegex: ^OrderCreated$
-        - messageType: acme.Order
+        - id: r2
+          messageType: acme.Order
 `, string(data))
 
 		data, err = yaml.Marshal(c.Clusters[1])

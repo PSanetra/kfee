@@ -32,7 +32,7 @@ func prdCluster() Cluster {
 			{Name: "connect", Url: "https://connect", Username: ptr("admin"), Password: ptr("connect-secret")},
 		},
 		Protobuf: &ProtobufConfig{Topics: []ProtobufTopicConfig{{
-			Topic: "orders", ProtoDir: "~/protos", Rules: []ProtobufRule{{MessageType: "acme.Order"}},
+			Topic: "orders", ProtoDir: "~/protos", Rules: []ProtobufRule{{ID: "r1", MessageType: "acme.Order"}},
 		}}},
 	}
 }
@@ -72,7 +72,8 @@ func TestConfigFiles(t *testing.T) {
             - topic: orders
               protoDir: ~/protos
               rules:
-                - messageType: acme.Order
+                - id: r1
+                  messageType: acme.Order
 plainFonts: false
 theme: nord
 `, readFile(t, configFile))
