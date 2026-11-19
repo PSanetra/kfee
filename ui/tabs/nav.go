@@ -22,6 +22,9 @@ type TopicsTabNavigator interface {
 	ToCachedConsumptionPage() tea.Cmd
 
 	ToRecordDetailsPage(RecordDetailsPageDetails) tea.Cmd
+
+	// ToDecodersPage lists the protobuf decoders of a topic and their transformations.
+	ToDecodersPage(DecodersPageDetails) tea.Cmd
 }
 
 type ConsumePageDetails struct {
@@ -29,6 +32,10 @@ type ConsumePageDetails struct {
 	Topic       *kadmin.ListedTopic
 	// OpenSearch opens the expanded search and only starts reading once it is submitted.
 	OpenSearch bool
+}
+
+type DecodersPageDetails struct {
+	Topic string
 }
 
 type RecordDetailsPageDetails struct {

@@ -19,6 +19,8 @@ type DesData struct {
 	Schema string
 	// MessageType is the fully qualified protobuf message type, empty for other formats.
 	MessageType string
+	// RuleID is the ID of the protobuf rule that decoded the value, empty for other formats.
+	RuleID string
 }
 
 var ErrNoSchemaRegistry = errors.New("no schema registry configured")

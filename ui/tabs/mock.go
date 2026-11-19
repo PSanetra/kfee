@@ -34,6 +34,16 @@ type ToConsumePageCalledMsg struct {
 type ToCachedConsumptionPageCalledMsg struct {
 }
 
+type ToDecodersPageCalledMsg struct {
+	Details DecodersPageDetails
+}
+
+func (m *MockTopicsTabNavigator) ToDecodersPage(d DecodersPageDetails) tea.Cmd {
+	return func() tea.Msg {
+		return ToDecodersPageCalledMsg{d}
+	}
+}
+
 type ToRecordDetailsPageCalledMsg struct {
 	Details RecordDetailsPageDetails
 }

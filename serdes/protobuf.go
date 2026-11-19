@@ -289,6 +289,24 @@ func (d *ProtobufDecoders) DeleteTopic(topic string) {
 	d.version.Add(1)
 }
 
+// Describe describes the message type of a schema rule of the topic for prompting a language model.
+func (d *ProtobufDecoders) Describe(topic, messageType string) (string, error) {
+	if d == nil {
+		return "", errors.New("no protobuf decoders configured")
+	}
+	d.mu.RLock()
+	t := d.topics[topic]
+	d.mu.RUnlock()
+	if t == nil {
+		return "", fmt.Errorf("no protobuf decoder configured for %s", topic)
+	}
+	schema, err := t.compiledSchema(d.compile, d.protoc)
+	if err != nil {
+		return "", err
+	}
+	return schema.Describe(messageType)
+}
+
 // Decode decodes the record when a protobuf rule of its topic matches it,
 // handled reports whether that was the case.
 func (d *ProtobufDecoders) Decode(topic string, headers []Header, value []byte) (data DesData, handled bool, err error) {
@@ -315,6 +333,7 @@ func (d *ProtobufDecoders) Decode(topic string, headers []Header, value []byte) 
 
 	if rule.Raw {
 		data, err = DecodeRaw(value)
+		data.RuleID = rule.ID
 		return data, true, err
 	}
 
@@ -323,6 +342,7 @@ func (d *ProtobufDecoders) Decode(topic string, headers []Header, value []byte) 
 		return DesData{}, true, err
 	}
 	data, err = schema.Decode(rule.MessageType, value)
+	data.RuleID = rule.ID
 	return data, true, err
 }
 

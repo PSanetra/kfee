@@ -39,6 +39,7 @@ func TestConsumptionPage(t *testing.T) {
 			{"Search", "/"},
 			{"Advanced Search", "C-f"},
 			{"Go Back", "esc"},
+			{"Decoders", "d"},
 		}, m.Shortcuts())
 	})
 
@@ -59,6 +60,7 @@ func TestConsumptionPage(t *testing.T) {
 			{"Stop consuming", "F2"},
 			{"New Search", "/"},
 			{"Go Back", "esc"},
+			{"Decoders", "d"},
 		}, m.Shortcuts())
 	})
 
@@ -144,6 +146,7 @@ func TestConsumptionPage(t *testing.T) {
 			{"Search", "/"},
 			{"Advanced Search", "C-f"},
 			{"Go Back", "esc"},
+			{"Decoders", "d"},
 		}, m.Shortcuts())
 	})
 
@@ -628,6 +631,7 @@ func TestConsumptionPage(t *testing.T) {
 			{"Advanced Search", "C-f"},
 			{"Sort", "F3"},
 			{"Go Back", "esc"},
+			{"Decoders", "d"},
 		}, m.Shortcuts())
 
 		m.Update(tests.Key(tea.KeyF3))
