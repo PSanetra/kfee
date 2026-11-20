@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -23,6 +24,8 @@ const (
 	attachedShown = 3
 	// editorChrome is the number of lines the dialog takes besides the filter field
 	editorChrome = 18
+	// previewDelay is how long the filter must stay unchanged before its result is computed
+	previewDelay = 200 * time.Millisecond
 )
 
 // transformEditor edits the jq filter that transforms the records decoded by one rule.
@@ -47,6 +50,20 @@ type transformEditor struct {
 	form       *huh.Form
 	// picker chooses the LLM tool when none is configured, nil otherwise
 	picker *toolPicker
+
+	// previewOut and previewErr are the result of the filter, computed by computePreview so that
+	// rendering never runs the filter
+	previewOut  string
+	previewText string
+	previewErr  error
+	// previewSeq identifies the latest filter change, a delayed computation is only run if it
+	// still matches
+	previewSeq int
+}
+
+// previewDueMsg asks to compute the result of the filter, sent previewDelay after a change.
+type previewDueMsg struct {
+	seq int
 }
 
 // toolPicker lets the user choose the LLM tool, or enter a custom command.
@@ -65,6 +82,7 @@ type llmGeneratedMsg struct {
 func newTransformEditor(payload, filter string) *transformEditor {
 	e := &transformEditor{payload: payload, filter: filter}
 	e.buildForm()
+	e.computePreview()
 	return e
 }
 
@@ -94,24 +112,47 @@ func (e *transformEditor) buildForm() {
 	e.form.Init()
 }
 
-// preview applies the filter to the payload, returning the result or the error.
-func (e *transformEditor) preview() (string, error) {
-	return transformation.Transform(strings.TrimSpace(e.filter), e.payload)
+// computePreview applies the filter to the payload and keeps the result for rendering. The result
+// is formatted here, rendering only lays out the lines that are shown.
+func (e *transformEditor) computePreview() {
+	e.previewOut, e.previewErr = transformation.Transform(strings.TrimSpace(e.filter), e.payload)
+	e.previewText = ""
+	if e.previewErr == nil {
+		e.previewText = ui.FormatPayload(e.previewOut)
+	}
 }
 
-// update passes the message to the form.
+// update passes the message to the form. A changed filter computes its result after a delay,
+// so that a burst of key presses runs the filter once.
 func (e *transformEditor) update(msg tea.Msg) tea.Cmd {
+	before := e.filter
 	form, cmd := e.form.Update(msg)
 	if f, ok := form.(*huh.Form); ok {
 		e.form = f
 	}
-	return cmd
+	if e.filter == before {
+		return cmd
+	}
+	e.previewSeq++
+	seq := e.previewSeq
+	return tea.Batch(cmd, tea.Tick(previewDelay, func(time.Time) tea.Msg {
+		return previewDueMsg{seq: seq}
+	}))
+}
+
+// handlePreviewDue computes the result unless the filter changed again since the message was sent.
+func (e *transformEditor) handlePreviewDue(msg previewDueMsg) {
+	if msg.seq == e.previewSeq {
+		e.computePreview()
+	}
 }
 
 // setFilter replaces the filter, the form is rebuilt because it does not follow the value.
 func (e *transformEditor) setFilter(filter string) {
 	e.filter = filter
+	e.previewSeq++
 	e.buildForm()
+	e.computePreview()
 }
 
 // attach adds the file unless it is attached already.
@@ -204,15 +245,16 @@ func (e *transformEditor) render(width, maxHeight int) string {
 	case e.generating:
 		result = "⏳ Generating the transformation …"
 	default:
-		if out, err := e.preview(); err != nil {
-			result = styles.Notifier.Error.UnsetMarginLeft().Render(err.Error())
+		if e.previewErr != nil {
+			result = styles.Notifier.Error.UnsetMarginLeft().Render(e.previewErr.Error())
 		} else {
-			result = ui.FormatPayload(out)
+			result = e.previewText
 		}
 	}
-	// the result is cut to the height of the dialog, the full result is in the record view
-	resultLines := strings.Split(lg.NewStyle().Width(rightWidth).Render(result), "\n")
-	if limit := max(3, maxHeight-editorChrome); len(resultLines) > limit {
+	// only the visible lines are wrapped, the full result is in the record view
+	limit := max(3, maxHeight-editorChrome)
+	resultLines := visibleLines(result, rightWidth, limit)
+	if len(resultLines) > limit {
 		resultLines = append(resultLines[:limit-1], styles.Help.Footer.Render("… truncated"))
 	}
 	right := []string{styles.Help.Key.Render("Result"), strings.Join(resultLines, "\n")}
@@ -234,6 +276,21 @@ func (e *transformEditor) render(width, maxHeight int) string {
 // clipLines cuts the view to at most height lines.
 func clipLines(view string, height int) string {
 	return lg.NewStyle().MaxHeight(height).Render(view)
+}
+
+// visibleLines wraps the text to the width line by line and stops once there are more than
+// limit lines, so that a long result is not wrapped in full on every frame.
+func visibleLines(text string, width, limit int) []string {
+	var lines []string
+	for _, raw := range strings.Split(text, "\n") {
+		for _, line := range strings.Split(lg.NewStyle().Width(width).Render(raw), "\n") {
+			lines = append(lines, line)
+			if len(lines) > limit {
+				return lines
+			}
+		}
+	}
+	return lines
 }
 
 func (e *transformEditor) Shortcuts() []statusbar.Shortcut {

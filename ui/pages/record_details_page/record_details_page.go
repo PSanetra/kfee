@@ -130,6 +130,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case llmGeneratedMsg:
 		m.handleGenerated(msg)
 		return nil
+	case previewDueMsg:
+		if m.transformEditor != nil {
+			m.transformEditor.handlePreviewDue(msg)
+		}
+		return nil
 	case protoDecoderClosedMsg:
 		m.protoModal = nil
 		return tea.Batch(cmds...)
