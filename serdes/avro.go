@@ -8,6 +8,7 @@ import (
 	"github.com/linkedin/goavro/v2"
 	"github.com/pkg/errors"
 	"kfee/sradmin"
+	"sync"
 )
 
 type GoAvroDeserializer struct {
@@ -19,6 +20,31 @@ type DesData struct {
 	Schema string
 	// MessageType is the fully qualified protobuf message type, empty for other formats.
 	MessageType string
+	// RuleID is the ID of the decoder that decoded the value: the protobuf rule, or the subject
+	// of the Avro schema. Empty when the value is not decoded.
+	RuleID string
+	// SchemaID is the schema registry ID of an Avro value, zero for other formats.
+	SchemaID int
+}
+
+// codecs keeps the compiled Avro codecs by schema, a schema compiles once per session.
+var codecs = struct {
+	sync.Mutex
+	byschema map[string]*goavro.Codec
+}{byschema: map[string]*goavro.Codec{}}
+
+func codecFor(schema string) (*goavro.Codec, error) {
+	codecs.Lock()
+	defer codecs.Unlock()
+	if codec, ok := codecs.byschema[schema]; ok {
+		return codec, nil
+	}
+	codec, err := goavro.NewCodec(schema)
+	if err != nil {
+		return nil, err
+	}
+	codecs.byschema[schema] = codec
+	return codec, nil
 }
 
 var ErrNoSchemaRegistry = errors.New("no schema registry configured")
@@ -40,7 +66,7 @@ func (d *GoAvroDeserializer) Deserialize(data []byte) (DesData, error) {
 			return DesData{}, err
 		} else {
 			var codec *goavro.Codec
-			if codec, err = goavro.NewCodec(schema.Value); err != nil {
+			if codec, err = codecFor(schema.Value); err != nil {
 				return DesData{}, err
 			}
 
@@ -53,7 +79,7 @@ func (d *GoAvroDeserializer) Deserialize(data []byte) (DesData, error) {
 			if err != nil {
 				return DesData{}, err
 			}
-			return DesData{Value: string(jsonData), Schema: schema.Value}, nil
+			return DesData{Value: string(jsonData), Schema: schema.Value, SchemaID: schemaId}, nil
 		}
 	} else {
 		return DesData{Value: string(data)}, nil

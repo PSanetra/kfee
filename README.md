@@ -172,6 +172,58 @@ clusters:
                     - messageType: acme.orders.v1.OrderCreated   # no header: used for all other records
 ```
 
+### Transformations
+
+A transformation turns the decoded value of a record into a different JSON value, e.g. to pick out the fields you
+need or to replace codes with readable names. Each decoder has its own transformations: a protobuf decoder rule, or an
+Avro schema (identified by its subject, `<topic>-value` or `<topic>-key`). The transformations are
+[jq](https://jqlang.org/manual/) filters.
+
+#### Writing a transformation
+
+1. Open a record decoded by a decoder and press `e`.
+2. Write the filter. The result for the shown record is displayed while you type. `ctrl+e` opens `$EDITOR`.
+3. Press `ctrl+s` to save, or `esc` to cancel. Saving applies the filter to the decoder's records from then on.
+
+#### Using transformations
+
+- The record view shows the transformed value, with `[ transformed ]` in the title. Press `t` to show the original.
+  The record preview of the records list works the same way.
+- Search matches the original and the transformed value.
+
+#### Transformation history
+
+Press `d` on the records list to open the decoders page of the topic. It lists the decoders and their latest
+transformation. `enter` on a decoder shows its schema and transformations. `a` or `enter` on a transformation activates
+it again, so it becomes the latest one. Only the last 10 transformations are kept per decoder.
+
+Note that `d` is no longer the half page down of tables on the records list, use `ctrl+d` there.
+
+#### LLM generated transformations
+
+In the editor, describe the transformation, optionally attach files with `ctrl+o` (e.g. a file mapping status codes
+to names), and press `ctrl+g`. The generated filter is put into the editor, nothing is saved until you press `ctrl+s`.
+
+kfee runs a command line LLM tool, which is chosen the first time `ctrl+g` is pressed:
+
+| Tool | Command |
+|------|---------|
+| Claude Code | `claude -p` |
+| pi | `pi --print` |
+| opencode | `opencode run` (the prompt is passed as the last argument) |
+| custom | any command that reads the prompt from stdin and prints the filter |
+
+The choice is stored in `config.yaml`:
+
+```yaml
+llm:
+    command: ["claude", "-p"]
+    promptAsArgument: false   # true for tools that only accept the prompt as argument
+    sendSample: false         # true to include the decoded record in the prompt
+```
+
+`sendSample` is off by default, since records can contain sensitive data.
+
 ### Debug logging
 
 Debug logs are written when `kfee` is started with `--debug`:

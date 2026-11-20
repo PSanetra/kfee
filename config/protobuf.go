@@ -1,5 +1,10 @@
 package config
 
+import (
+	"crypto/rand"
+	"encoding/hex"
+)
+
 // ProtobufConfig configures decoding of raw protobuf records (without schema registry framing).
 type ProtobufConfig struct {
 	// Protoc is the protoc binary used to compile .proto files, defaults to "protoc" from the PATH.
@@ -42,6 +47,9 @@ type ProtobufTopicConfig struct {
 // is set, the rule only applies to records having that header with a value matching ValueRegex,
 // otherwise it applies to all records.
 type ProtobufRule struct {
+	// ID identifies the rule across edits, it keeps the transformation history of the rule.
+	// It is assigned when the topic configuration is stored.
+	ID          string `yaml:"id,omitempty"`
 	MessageType string `yaml:"messageType,omitempty"`
 	// Raw decodes without schema, showing field numbers instead of names
 	Raw        bool   `yaml:"raw,omitempty"`
@@ -53,11 +61,38 @@ func (r ProtobufRule) IsFallback() bool {
 	return r.Header == ""
 }
 
+// EnsureRuleIDs assigns an ID to every rule without one.
+func (t *ProtobufTopicConfig) EnsureRuleIDs() {
+	for i := range t.Rules {
+		if t.Rules[i].ID == "" {
+			t.Rules[i].ID = newRuleID()
+		}
+	}
+}
+
+func newRuleID() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
+
 // WithRule returns a copy of the topic config including the given rule.
 //
 // A rule for the same header and value regex is replaced, a fallback rule replaces the
-// existing fallback. Header rules are kept in front of the fallback rule.
+// existing fallback. Header rules are kept in front of the fallback rule. The replaced
+// rule keeps its ID when the given rule has none.
 func (t ProtobufTopicConfig) WithRule(rule ProtobufRule) ProtobufTopicConfig {
+	if rule.ID == "" {
+		for _, r := range t.Rules {
+			if r.IsFallback() == rule.IsFallback() &&
+				(r.IsFallback() || (r.Header == rule.Header && r.ValueRegex == rule.ValueRegex)) {
+				rule.ID = r.ID
+				break
+			}
+		}
+	}
 	var (
 		headerRules []ProtobufRule
 		fallback    *ProtobufRule
@@ -96,6 +131,7 @@ func (c *Config) SetProtobufTopic(clusterName string, topic ProtobufTopicConfig)
 	if cluster == nil {
 		return
 	}
+	topic.EnsureRuleIDs()
 	if cluster.Protobuf == nil {
 		cluster.Protobuf = &ProtobufConfig{}
 	}
@@ -121,6 +157,26 @@ func (c *Config) DeleteProtobufTopic(clusterName string, topic string) {
 	}
 	cluster.Protobuf.Topics = topics
 	c.flush()
+}
+
+// ensureRuleIDs assigns IDs to all rules without one, reports whether any was assigned.
+func (c *Config) ensureRuleIDs() bool {
+	changed := false
+	for i := range c.Clusters {
+		if c.Clusters[i].Protobuf == nil {
+			continue
+		}
+		for j := range c.Clusters[i].Protobuf.Topics {
+			topic := &c.Clusters[i].Protobuf.Topics[j]
+			for _, r := range topic.Rules {
+				if r.ID == "" {
+					changed = true
+				}
+			}
+			topic.EnsureRuleIDs()
+		}
+	}
+	return changed
 }
 
 func (c *Config) findCluster(name string) *Cluster {

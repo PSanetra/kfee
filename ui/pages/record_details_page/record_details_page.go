@@ -7,6 +7,7 @@ import (
 	"kfee/kontext"
 	"kfee/serdes"
 	"kfee/styles"
+	"kfee/transformation"
 	"kfee/ui"
 	"kfee/ui/clipper"
 	"kfee/ui/components/border"
@@ -50,14 +51,21 @@ type Model struct {
 	focus          focus
 	state          state
 	payload        string
-	err            error
-	metaInfo       string
-	clipWriter     clipper.Writer
-	config         *config.Config
-	schemaVp       *viewport.Model
-	border         *border.Model
-	navigator      tabs.TopicsTabNavigator
-	protoDecoders  *serdes.ProtobufDecoders
+	// transformed is the payload with the latest transformation applied, empty if there is none
+	transformed string
+	// showOriginal shows the payload without the transformation
+	showOriginal bool
+	// transformEditor is open while the transformation of the rule is edited
+	transformEditor *transformEditor
+	transformer     *transformation.Transformer
+	err             error
+	metaInfo        string
+	clipWriter      clipper.Writer
+	config          *config.Config
+	schemaVp        *viewport.Model
+	border          *border.Model
+	navigator       tabs.TopicsTabNavigator
+	protoDecoders   *serdes.ProtobufDecoders
 	// compile compiles .proto files, replaceable for tests
 	compile    serdes.ProtoCompiler
 	protoModal *protoDecoderModal
@@ -102,6 +110,9 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 	if m.protoModal != nil {
 		content = ui.Overlay(content, m.protoModal.View(ktx.WindowWidth), ktx.WindowWidth, ktx.AvailableHeight)
 	}
+	if m.transformEditor != nil {
+		content = ui.Overlay(content, m.transformEditor.View(ktx.WindowWidth, ktx.AvailableHeight), ktx.WindowWidth, ktx.AvailableHeight)
+	}
 	return content
 }
 
@@ -116,6 +127,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	cmds = append(cmds, cmd)
 
 	switch msg := msg.(type) {
+	case llmGeneratedMsg:
+		m.handleGenerated(msg)
+		return nil
+	case previewDueMsg:
+		if m.transformEditor != nil {
+			m.transformEditor.handlePreviewDue(msg)
+		}
+		return nil
+	case externalEditedMsg:
+		return m.handleExternalEdited(msg)
 	case protoDecoderClosedMsg:
 		m.protoModal = nil
 		return tea.Batch(cmds...)
@@ -137,6 +158,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.redecode()
 		m.notifierCmdbar.Notifier.ShowSuccessMsg("Protobuf decoder removed")
 		return tea.Batch(append(cmds, m.notifierCmdbar.Notifier.AutoHideCmd("record-details-page"))...)
+	}
+
+	// the transformation editor captures all key presses and pastes while open. Other messages
+	// go to its fields too, e.g. the text returned by $EDITOR.
+	if m.transformEditor != nil {
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			return m.updateTransformEditor(msg)
+		case tea.PasteMsg:
+			return m.transformEditor.update(msg)
+		default:
+			cmds = append(cmds, m.transformEditor.update(msg))
+		}
 	}
 
 	// the protobuf decoder modal captures all key presses while open
@@ -163,6 +197,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.focus = !m.focus
 				m.border.Focused = m.focus == mainViewFocus
 			}
+		case "e":
+			m.openTransformEditor()
+		case "t":
+			m.toggleOriginal()
 		case "c":
 			cmds = m.handleCopy(cmds)
 		case "tab":
@@ -269,7 +307,7 @@ func (m *Model) recordView(payloadWidth int, height int) string {
 		if m.err == nil {
 			m.recordVp.SetContent(lipgloss.NewStyle().
 				Padding(0, 1).
-				Render(m.payload))
+				Render(m.shownPayload()))
 		} else {
 			m.recordVp.SetContent(lipgloss.NewStyle().
 				AlignHorizontal(lipgloss.Center).
@@ -313,7 +351,7 @@ func (m *Model) handleCopy(cmds []tea.Cmd) []tea.Cmd {
 		if m.state == schemaView {
 			copiedValue = ansi.Strip(m.record.Payload.Schema)
 		} else {
-			copiedValue = ansi.Strip(m.payload)
+			copiedValue = ansi.Strip(m.shownPayload())
 		}
 
 		err := m.clipWriter.Write(copiedValue)
@@ -383,12 +421,14 @@ func (m *Model) resetViews() {
 
 func (m *Model) updateMetaInfo() {
 	m.metaInfo = metaInfo(m.record)
+	m.transformed = ""
 	if m.record.Err != nil {
 		m.err = m.record.Err
 		m.notifierCmdbar.Notifier.ShowError(m.record.Err)
 	} else {
 		m.err = nil
 		m.payload = ui.PrettyPrintJson(m.record.Payload.Value)
+		m.refreshTransformation()
 	}
 }
 
@@ -470,6 +510,9 @@ func (m *Model) updatedFocussedArea(msg tea.Msg, cmds []tea.Cmd) []tea.Cmd {
 }
 
 func (m *Model) Shortcuts() []statusbar.Shortcut {
+	if m.transformEditor != nil {
+		return m.transformEditor.Shortcuts()
+	}
 	if m.protoModal != nil {
 		return m.protoModal.Shortcuts()
 	}
@@ -489,6 +532,13 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 			{"Go Back", "esc"},
 			{"Copy " + whatToCopy, "c"},
 			protoShortcut,
+		}
+
+		if m.record.Payload.RuleID != "" {
+			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Transform", Keybinding: "e"})
+		}
+		if m.transformed != "" {
+			shortcuts = append(shortcuts, statusbar.Shortcut{Name: m.transformToggleName(), Keybinding: "t"})
 		}
 
 		if len(m.records) > 1 {
@@ -593,11 +643,13 @@ func New(
 		state:          recordView,
 		navigator:      navigator,
 		protoDecoders:  ktx.ProtoDecoders(),
+		transformer:    ktx.Transformer(),
 		compile:        serdes.CompileProtoDir,
 	}
+	m.refreshTransformation()
 	// the payload type changes when navigating records or changing the protobuf decoder
 	m.border = border.New(
 		border.WithTabs(tabs...),
-		border.WithTitleFn(func() string { return "[ " + m.record.PayloadType() + " ]" }))
+		border.WithTitleFn(func() string { return "[ " + m.record.PayloadType() + " ]" + m.transformationMarker() }))
 	return m
 }

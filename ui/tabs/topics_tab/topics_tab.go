@@ -11,6 +11,7 @@ import (
 	"kfee/ui/pages/configs_page"
 	"kfee/ui/pages/consume_page"
 	"kfee/ui/pages/create_topic_page"
+	"kfee/ui/pages/decoders_page"
 	"kfee/ui/pages/publish_page"
 	"kfee/ui/pages/record_details_page"
 	"kfee/ui/pages/topics_page"
@@ -106,6 +107,9 @@ func (m *Model) ToConsumePage(msg tabs.ConsumePageDetails) tea.Cmd {
 		m,
 	)
 	m.consumptionPage = m.active
+	if page, ok := m.active.(*consume_page.Model); ok {
+		page.SetTransformer(m.ktx.Transformer(), msg.ReadDetails.TopicName)
+	}
 	return cmd
 }
 
@@ -113,6 +117,11 @@ func (m *Model) ToCachedConsumptionPage() tea.Cmd {
 	m.active = m.consumptionPage
 	// lets the page resume its loading indicator while it was not receiving msgs
 	return ui.PublishMsg(ui.RegainedFocusMsg{})
+}
+
+func (m *Model) ToDecodersPage(d tabs.DecodersPageDetails) tea.Cmd {
+	m.active = decoders_page.New(d.Topic, m.ktx.Config(), m.ktx.Transformer(), m.ktx.ProtoDecoders(), m, d.AvroSchemas, clipper.New())
+	return nil
 }
 
 func (m *Model) ToRecordDetailsPage(d tabs.RecordDetailsPageDetails) tea.Cmd {

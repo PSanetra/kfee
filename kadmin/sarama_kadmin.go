@@ -49,6 +49,8 @@ type SaramaKafkaAdmin struct {
 	sra      sradmin.Client
 	// protoDecoders decode raw protobuf records, nil when none are configured
 	protoDecoders *serdes.ProtobufDecoders
+	// transformer applies the transformations saved for decoder rules, nil when none are configured
+	transformer Transformer
 }
 
 type ConnCheckStartedMsg struct {
