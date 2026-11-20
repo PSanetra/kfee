@@ -135,6 +135,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.transformEditor.handlePreviewDue(msg)
 		}
 		return nil
+	case externalEditedMsg:
+		return m.handleExternalEdited(msg)
 	case protoDecoderClosedMsg:
 		m.protoModal = nil
 		return tea.Batch(cmds...)
@@ -158,10 +160,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(append(cmds, m.notifierCmdbar.Notifier.AutoHideCmd("record-details-page"))...)
 	}
 
-	// the transformation editor captures all key presses while open
+	// the transformation editor captures all key presses and pastes while open. Other messages
+	// go to its fields too, e.g. the text returned by $EDITOR.
 	if m.transformEditor != nil {
-		if key, ok := msg.(tea.KeyPressMsg); ok {
-			return m.updateTransformEditor(key)
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			return m.updateTransformEditor(msg)
+		case tea.PasteMsg:
+			return m.transformEditor.update(msg)
+		default:
+			cmds = append(cmds, m.transformEditor.update(msg))
 		}
 	}
 

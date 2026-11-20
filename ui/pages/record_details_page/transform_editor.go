@@ -23,7 +23,7 @@ const (
 	// attachedShown is how many attached files are listed, the others are counted
 	attachedShown = 3
 	// editorChrome is the number of lines the dialog takes besides the filter field
-	editorChrome = 18
+	editorChrome = 20
 	// previewDelay is how long the filter must stay unchanged before its result is computed
 	previewDelay = 200 * time.Millisecond
 )
@@ -41,8 +41,8 @@ type transformEditor struct {
 	filter string
 	// filterText is the field of the filter, its height adapts to the window
 	filterText *huh.Text
-	// descInput is the field describing the transformation for the LLM
-	descInput *huh.Input
+	// descText is the field describing the transformation for the LLM, several lines long
+	descText *huh.Text
 	// generated is the filter the language model returned last, saved as such if unchanged
 	generated  string
 	generating bool
@@ -79,6 +79,21 @@ type llmGeneratedMsg struct {
 	err    error
 }
 
+// editTarget is the text field that $EDITOR changes.
+type editTarget int
+
+const (
+	editDescription editTarget = iota
+	editFilter
+)
+
+// externalEditedMsg is the text $EDITOR returned for one field.
+type externalEditedMsg struct {
+	target editTarget
+	text   string
+	err    error
+}
+
 func newTransformEditor(payload, filter string) *transformEditor {
 	e := &transformEditor{payload: payload, filter: filter}
 	e.buildForm()
@@ -87,28 +102,40 @@ func newTransformEditor(payload, filter string) *transformEditor {
 }
 
 // buildForm creates the form on the current values, the fields write into them. tab moves
-// between the description and the filter.
+// from the description to the filter. ctrl+e opens $EDITOR in either text field.
 func (e *transformEditor) buildForm() {
-	// enter inserts a new line into the filter, the filter is saved with ctrl+s
+	// enter inserts a new line into the filter, the filter is saved with ctrl+s. ctrl+e is handled
+	// by the page: huh would apply the result of the editor to both fields.
 	keys := huh.NewDefaultKeyMap()
 	keys.Text.Submit = key.NewBinding(key.WithKeys())
 	keys.Text.Next = key.NewBinding(key.WithKeys())
 	keys.Text.NewLine = key.NewBinding(key.WithKeys("enter", "alt+enter", "ctrl+j"), key.WithHelp("enter", "new line"))
+	keys.Text.Editor = key.NewBinding(key.WithKeys())
 
 	e.filterText = huh.NewText().
 		Value(&e.filter).
 		Title("Transformation (jq filter)").
 		ShowLineNumbers(true)
-	e.filterText.WithKeyMap(keys)
 
-	e.descInput = huh.NewInput().
+	// the description keeps tab for moving on to the filter, enter inserts a new line
+	descKeys := huh.NewDefaultKeyMap()
+	descKeys.Text.Submit = key.NewBinding(key.WithKeys())
+	descKeys.Text.Next = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next"))
+	descKeys.Text.NewLine = key.NewBinding(key.WithKeys("enter", "alt+enter", "ctrl+j"), key.WithHelp("enter", "new line"))
+	descKeys.Text.Editor = key.NewBinding(key.WithKeys())
+
+	e.descText = huh.NewText().
 		Value(&e.description).
-		Title("Describe the transformation (ctrl+g generates it)")
+		Title("Describe the transformation (ctrl+g generates it)").
+		Lines(3)
 	fields := []huh.Field{
-		e.descInput,
+		e.descText,
 		e.filterText,
 	}
 	e.form = huh.NewForm(huh.NewGroup(fields...)).WithTheme(styles.Huh).WithShowHelp(false)
+	// the form applies its own keymap to the fields when it is created, so the fields get theirs afterwards
+	e.filterText.WithKeyMap(keys)
+	e.descText.WithKeyMap(descKeys)
 	e.form.Init()
 }
 
@@ -153,6 +180,22 @@ func (e *transformEditor) setFilter(filter string) {
 	e.previewSeq++
 	e.buildForm()
 	e.computePreview()
+}
+
+// focusedText returns the text field that has the focus and its text.
+func (e *transformEditor) focusedText() (editTarget, string, bool) {
+	switch e.form.GetFocusedField() {
+	case e.descText:
+		return editDescription, e.description, true
+	case e.filterText:
+		return editFilter, e.filter, true
+	}
+	return 0, "", false
+}
+
+// focusFilter moves the focus from the description to the filter.
+func (e *transformEditor) focusFilter() tea.Cmd {
+	return e.form.NextField()
 }
 
 // attach adds the file unless it is attached already.
@@ -220,7 +263,7 @@ func (e *transformEditor) render(width, maxHeight int) string {
 
 	e.form.WithWidth(leftWidth)
 	// the fields take the width of the left column themselves, the form sizes them differently
-	e.descInput.WithWidth(leftWidth)
+	e.descText.WithWidth(leftWidth)
 	e.filterText.WithWidth(leftWidth)
 	left := []string{e.form.View()}
 	if len(e.attachments) > 0 {
@@ -269,7 +312,7 @@ func (e *transformEditor) render(width, maxHeight int) string {
 		"",
 		columns,
 		"",
-		styles.Help.Footer.Width(width).Render("ctrl+s save · ctrl+g generate · ctrl+o attach file · ctrl+r remove last file · esc cancel"),
+		styles.Help.Footer.Width(width).Render("ctrl+s save · ctrl+g generate · ctrl+e $EDITOR · ctrl+o attach file · ctrl+r remove last file · esc cancel"),
 	))
 }
 
@@ -309,6 +352,7 @@ func (e *transformEditor) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
 		{Name: "Save", Keybinding: "C-s"},
 		{Name: "Generate", Keybinding: "C-g"},
+		{Name: "Editor", Keybinding: "C-e"},
 		{Name: "Attach File", Keybinding: "C-o"},
 		{Name: "Close", Keybinding: "esc"},
 	}
