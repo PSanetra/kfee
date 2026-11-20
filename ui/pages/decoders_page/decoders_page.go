@@ -9,7 +9,10 @@ import (
 	"kfee/styles"
 	"kfee/transformation"
 	"kfee/ui"
+	"kfee/ui/clipper"
 	"kfee/ui/components/border"
+	"kfee/ui/components/cmdbar"
+	"kfee/ui/components/notifier"
 	"kfee/ui/components/statusbar"
 	ktable "kfee/ui/components/table"
 	"kfee/ui/tabs"
@@ -21,7 +24,16 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
+
+// SchemaCopiedMsg is sent when the schema of a decoder was copied.
+type SchemaCopiedMsg struct{}
+
+// CopyErrorMsg is sent when copying failed.
+type CopyErrorMsg struct {
+	Err error
+}
 
 // avroPrefix marks the decoder ID of an Avro subject, see serdes and kadmin.
 const avroPrefix = "avro:"
@@ -55,6 +67,9 @@ type Model struct {
 	// entry is the position in the history of the selected decoder, oldest first
 	entry     int
 	navigator tabs.TopicsTabNavigator
+	// clipWriter copies the schema of the selected decoder
+	clipWriter     clipper.Writer
+	notifierCmdbar *cmdbar.NotifierCmdBar
 }
 
 // New lists the decoders of the topic in the active cluster of cfg: its protobuf rules, described
@@ -67,14 +82,26 @@ func New(
 	protoDecoders *serdes.ProtobufDecoders,
 	navigator tabs.TopicsTabNavigator,
 	avroSchemas map[string]string,
+	clipWriter clipper.Writer,
 ) *Model {
+	notifierCmdBar := cmdbar.NewNotifierCmdBar("decoders-page")
+	cmdbar.BindNotificationHandler(notifierCmdBar, func(msg SchemaCopiedMsg, m *notifier.Model) (bool, tea.Cmd) {
+		m.ShowSuccessMsg("Schema copied")
+		return true, m.AutoHideCmd("decoders-page")
+	})
+	cmdbar.BindNotificationHandler(notifierCmdBar, func(msg CopyErrorMsg, m *notifier.Model) (bool, tea.Cmd) {
+		m.ShowErrorMsg("Copy failed", msg.Err)
+		return true, m.AutoHideCmd("decoders-page")
+	})
 	m := &Model{
-		topic:       topic,
-		history:     map[string][]transformation.Entry{},
-		store:       transformation.Store{Dir: config.TransformationsDir()},
-		transformer: transformer,
-		table:       ktable.NewDefaultTable(),
-		navigator:   navigator,
+		topic:          topic,
+		history:        map[string][]transformation.Entry{},
+		store:          transformation.Store{Dir: config.TransformationsDir()},
+		transformer:    transformer,
+		table:          ktable.NewDefaultTable(),
+		navigator:      navigator,
+		clipWriter:     clipWriter,
+		notifierCmdbar: notifierCmdBar,
 	}
 	if cluster := cfg.ActiveCluster(); cluster != nil {
 		m.cluster = cluster.Name
@@ -106,7 +133,14 @@ func New(
 	return m
 }
 
+// View shows the notification above the decoders. The notification takes its height first, so the
+// content is laid out in the rest.
 func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
+	notifierView := m.notifierCmdbar.View(ktx, renderer)
+	return ui.JoinVertical(lg.Top, notifierView, m.body(ktx, renderer))
+}
+
+func (m *Model) body(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 	if m.detail && len(m.decoders) > 0 {
 		return renderer.Render(m.detailView(ktx))
 	}
@@ -169,7 +203,15 @@ func (m *Model) detailView(ktx *kontext.ProgramKtx) string {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	_, _, notifyCmd := m.notifierCmdbar.Update(msg)
+	return tea.Batch(notifyCmd, m.update(msg))
+}
+
+func (m *Model) update(msg tea.Msg) tea.Cmd {
 	if key, ok := msg.(tea.KeyPressMsg); ok {
+		if key.String() == "c" && len(m.decoders) > 0 {
+			return m.copySchema()
+		}
 		if m.detail {
 			return m.updateDetail(key)
 		}
@@ -257,12 +299,16 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 				statusbar.Shortcut{Name: "Activate", Keybinding: "a/enter"},
 			)
 		}
-		return append(shortcuts, statusbar.Shortcut{Name: "Back", Keybinding: "esc"})
+		return append(shortcuts,
+			statusbar.Shortcut{Name: "Copy Schema", Keybinding: "c"},
+			statusbar.Shortcut{Name: "Back", Keybinding: "esc"},
+		)
 	}
-	return []statusbar.Shortcut{
-		{Name: "Show Transformations", Keybinding: "enter"},
-		{Name: "Go Back", Keybinding: "esc"},
+	shortcuts := []statusbar.Shortcut{{Name: "Show Transformations", Keybinding: "enter"}}
+	if len(m.decoders) > 0 {
+		shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Copy Schema", Keybinding: "c"})
 	}
+	return append(shortcuts, statusbar.Shortcut{Name: "Go Back", Keybinding: "esc"})
 }
 
 func (m *Model) Title() string {
@@ -273,6 +319,14 @@ func (m *Model) Title() string {
 func (m *Model) selected() decoder {
 	i := min(max(m.table.Cursor(), 0), len(m.decoders)-1)
 	return m.decoders[i]
+}
+
+// copySchema copies the schema of the decoder under the cursor, as shown.
+func (m *Model) copySchema() tea.Cmd {
+	if err := m.clipWriter.Write(ansi.Strip(m.selected().schema)); err != nil {
+		return ui.PublishMsg(CopyErrorMsg{Err: err})
+	}
+	return ui.PublishMsg(SchemaCopiedMsg{})
 }
 
 // latest is the filter applied last to the decoder, or a hint when there is none.
