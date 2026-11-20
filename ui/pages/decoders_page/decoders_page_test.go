@@ -14,6 +14,7 @@ import (
 	"kfee/kontext"
 	"kfee/tests"
 	"kfee/transformation"
+	"kfee/ui/clipper"
 	"kfee/ui/tabs"
 )
 
@@ -34,7 +35,7 @@ func TestDecodersPage(t *testing.T) {
 	ktx := kontext.New(nil)
 	ktx.WindowWidth, ktx.WindowHeight, ktx.AvailableHeight = 120, 40, 36
 	navigator := tabs.NewMockTopicsTabNavigator()
-	m := New("orders", cfg, nil, nil, navigator, map[string]string{"avro:orders-value": `{"type":"record","name":"Order","fields":[{"name":"id","type":"string"}]}`})
+	m := New("orders", cfg, nil, nil, navigator, map[string]string{"avro:orders-value": `{"type":"record","name":"Order","fields":[{"name":"id","type":"string"}]}`}, clipper.NewMock())
 
 	t.Run("lists the decoders with the latest transformation", func(t *testing.T) {
 		render := ansi.Strip(m.View(ktx, tests.Renderer))
@@ -114,7 +115,7 @@ func TestDecodersPageScrollsTheSchema(t *testing.T) {
 	ktx := kontext.New(nil)
 	ktx.WindowWidth, ktx.WindowHeight, ktx.AvailableHeight = 120, 40, 36
 	m := New("orders", &config.Config{Clusters: []config.Cluster{{Name: "prd", Active: true}}}, nil, nil,
-		tabs.NewMockTopicsTabNavigator(), map[string]string{"avro:orders-value": schema})
+		tabs.NewMockTopicsTabNavigator(), map[string]string{"avro:orders-value": schema}, clipper.NewMock())
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	render := ansi.Strip(m.View(ktx, tests.Renderer))
