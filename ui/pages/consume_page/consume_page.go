@@ -89,12 +89,14 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		previewW := previewWidth(ktx.WindowWidth)
 		tableW := ktx.WindowWidth - previewW
 
-		keyCol := int(float64(tableW) * 0.4)
-		// fits "2006-01-02 15:04:05"
+		// fits "2006-01-02 15:04:05", the key takes the rest, the padding of the five columns is included
 		tsCol := max(int(float64(tableW)*0.2), 19)
-		PCol := int(float64(tableW) * 0.2)
-		oCol := tableW - keyCol - tsCol - PCol - 10
+		PCol := max(int(float64(tableW)*0.12), 9)
+		oCol := max(int(float64(tableW)*0.1), 9)
+		decCol := max(int(float64(tableW)*0.2), 10)
+		keyCol := tableW - tsCol - PCol - oCol - decCol - 12
 		m.table.SetColumns([]table.Column{
+			{Title: "Decoder", Width: decCol},
 			{Title: m.cmdBar.sortByCBar.PrefixSortIcon("Key"), Width: keyCol},
 			{Title: m.cmdBar.sortByCBar.PrefixSortIcon("Timestamp"), Width: tsCol},
 			{Title: m.cmdBar.sortByCBar.PrefixSortIcon("Partition"), Width: PCol},
@@ -109,7 +111,7 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		// records arriving while reading are sorted in, keep the record selected by the user
 		if m.selected != nil {
 			for i, row := range m.rows {
-				if row[2] == m.selected.partition && row[3] == m.selected.offset {
+				if row[colPartition] == m.selected.partition && row[colOffset] == m.selected.offset {
 					m.table.SetCursor(i)
 					break
 				}
@@ -240,7 +242,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		// the user moved the cursor, keep that record selected while records arrive
 		if _, ok := msg.(tea.KeyPressMsg); ok {
 			if row := m.table.SelectedRow(); row != nil {
-				m.selected = &rowKey{partition: row[2], offset: row[3]}
+				m.selected = &rowKey{partition: row[colPartition], offset: row[colOffset]}
 			}
 		}
 	}
@@ -256,7 +258,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) previewedRecord() *kadmin.ConsumerRecord {
 	if m.selected != nil {
 		for _, row := range m.rows {
-			if row[2] == m.selected.partition && row[3] == m.selected.offset {
+			if row[colPartition] == m.selected.partition && row[colOffset] == m.selected.offset {
 				record := m.recordForRow(row)
 				return &record
 			}
@@ -306,8 +308,8 @@ func (m *Model) selectedRecord() *kadmin.ConsumerRecord {
 }
 
 func (m *Model) recordForRow(row table.Row) kadmin.ConsumerRecord {
-	offset, _ := strconv.ParseInt(row[3], 10, 64)
-	partition, _ := strconv.ParseInt(row[2], 10, 32)
+	offset, _ := strconv.ParseInt(row[colOffset], 10, 64)
+	partition, _ := strconv.ParseInt(row[colPartition], 10, 32)
 	for _, rec := range m.records {
 		if rec.Partition == partition &&
 			rec.Offset == offset {
@@ -318,8 +320,8 @@ func (m *Model) recordForRow(row table.Row) kadmin.ConsumerRecord {
 }
 
 func (m *Model) recordIndexForRow(row table.Row) int {
-	offset, _ := strconv.ParseInt(row[3], 10, 64)
-	partition, _ := strconv.ParseInt(row[2], 10, 32)
+	offset, _ := strconv.ParseInt(row[colOffset], 10, 64)
+	partition, _ := strconv.ParseInt(row[colPartition], 10, 32)
 	for i, rec := range m.records {
 		if rec.Partition == partition &&
 			rec.Offset == offset {
@@ -327,6 +329,31 @@ func (m *Model) recordIndexForRow(row table.Row) int {
 		}
 	}
 	panic(fmt.Sprintf("Record not found for row: %v", row))
+}
+
+// columns of the records table, in the order they are shown
+const (
+	colDecoder = iota
+	colKey
+	colTimestamp
+	colPartition
+	colOffset
+)
+
+// decoderName names the decoder of a record: the subject of an Avro schema, the message type of a
+// protobuf rule, or the raw decoding. Empty when the value is not decoded. Names with dots are
+// shortened to their last part, e.g. acme.orders.v1.OrderCancelled shows OrderCancelled.
+func decoderName(data serdes.DesData) string {
+	var name string
+	switch {
+	case strings.HasPrefix(data.RuleID, "avro:"):
+		name = strings.TrimPrefix(data.RuleID, "avro:")
+	case data.MessageType == serdes.RawMessageType:
+		return "without schema"
+	default:
+		name = data.MessageType
+	}
+	return name[strings.LastIndex(name, ".")+1:]
 }
 
 func (m *Model) createRows() []table.Row {
@@ -343,6 +370,7 @@ func (m *Model) createRows() []table.Row {
 		rows = append(
 			rows,
 			table.Row{
+				decoderName(rec.Payload),
 				key,
 				rec.Timestamp.Format("2006-01-02 15:04:05"),
 				strconv.FormatInt(rec.Partition, 10),
@@ -355,13 +383,13 @@ func (m *Model) createRows() []table.Row {
 		var col int
 		switch m.cmdBar.sortByCBar.SortedBy().Label {
 		case "Key":
-			col = 0
+			col = colKey
 		case "Timestamp":
-			col = 1
+			col = colTimestamp
 		case "Partition":
-			col = 2
+			col = colPartition
 		case "Offset":
-			col = 3
+			col = colOffset
 		default:
 			panic(fmt.Sprintf("unexpected sort label: %s", m.cmdBar.sortByCBar.SortedBy().Label))
 		}
