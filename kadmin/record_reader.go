@@ -83,7 +83,7 @@ type StartPoint int64
 
 // idleConsumptionTimeout is how long a partition may go without delivering a message
 // before checking whether all available records have been consumed.
-var idleConsumptionTimeout = 2 * time.Second
+var idleConsumptionTimeout = 3 * time.Second
 
 const (
 	Beginning StartPoint = iota
@@ -436,11 +436,8 @@ func isValidXML(data []byte) bool {
 
 type offsets struct {
 	start int64
-	// offset after the last delivered record, i.e. the high water mark unless the
-	// partition ends with records that are never delivered (e.g. transaction markers)
+	// end is the offset after the newest record, i.e. the high water mark
 	end int64
-	// probed indicates end is known to follow a delivered record
-	probed bool
 }
 
 func (o *offsets) newest() int64 {
@@ -551,6 +548,16 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 		}, true
 	}
 
+	// the oldest record of each partition, which orders the partitions when reading further back
+	oldest := newOldestTimes()
+	countingMatch := func(msg *sarama.ConsumerMessage) (ConsumerRecord, bool) {
+		record, ok := match(msg)
+		if ok {
+			oldest.observe(int(msg.Partition), msg.Timestamp)
+		}
+		return record, ok
+	}
+
 	// send passes a record to the UI, it reports whether reading has to stop
 	send := func(consumerRecord ConsumerRecord) (stop bool) {
 		// partitions are read concurrently, only the record reaching the limit is still sent
@@ -573,10 +580,91 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 	}
 
 	process := func(msg *sarama.ConsumerMessage) (stop bool) {
-		if record, ok := match(msg); ok {
+		if record, ok := countingMatch(msg); ok {
 			return send(record)
 		}
 		return false
+	}
+
+	// readWindow consumes the offsets of one window of a partition, until its end or the limit
+	readWindow := func(partition int, window readingOffsets) {
+		log.Debug("Reading offsets determined",
+			"topic", rd.TopicName,
+			"partition", partition,
+			"start", window.start,
+			"end", window.end,
+		)
+
+		consumer, err := client.ConsumePartition(
+			rd.TopicName,
+			int32(partition),
+			window.start,
+		)
+		if err != nil {
+			sendErr(ctx, startedMsg.Err, err)
+			cancelFunc()
+			return
+		}
+		// Closing waits for the in-flight fetch, which the broker holds for
+		// Consumer.MaxWaitTime when there is no new data, so close in the background.
+		defer func() {
+			consumer.AsyncClose()
+			go func() {
+				for range consumer.Messages() {
+				}
+			}()
+			go func() {
+				for range consumer.Errors() {
+				}
+			}()
+		}()
+
+		msgChan := consumer.Messages()
+		live := rd.StartPoint == Live
+
+		// The window end may be a record that is never delivered (e.g. transaction control
+		// markers). So when no message arrives for a while, we verify that all records up to the
+		// high water mark have been fetched.
+		idle := time.NewTimer(idleConsumptionTimeout)
+		defer idle.Stop()
+
+		for {
+			select {
+			case err := <-consumer.Errors():
+				sendErr(ctx, startedMsg.Err, err)
+				return
+			case <-ctx.Done():
+				return
+			case <-idle.C:
+				hwm := consumer.HighWaterMarkOffset()
+				if idleReachedEnd(live, hwm, len(msgChan)) {
+					log.Debug("No more records available",
+						"topic", rd.TopicName,
+						"partition", partition,
+						"end", window.end,
+						"highWaterMark", hwm,
+					)
+					return
+				}
+				idle.Reset(idleConsumptionTimeout)
+			case msg := <-msgChan:
+				if !idle.Stop() {
+					select {
+					case <-idle.C:
+					default:
+					}
+				}
+				idle.Reset(idleConsumptionTimeout)
+
+				reachedEnd := !live && msg.Offset >= window.end
+				if process(msg) {
+					return
+				}
+				if reachedEnd {
+					return
+				}
+			}
+		}
 	}
 
 	emptyTopic := true
@@ -584,6 +672,9 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 	log.Debug("Starting to read records",
 		"partition", rd.PartitionToRead,
 		"offsets", offsets)
+
+	// windows are the offsets covered so far by each partition
+	windows := make(map[int]readingOffsets)
 
 	for _, p := range rd.PartitionToRead {
 		// if there is no data in the partition, we don't need to read it unless live consumption is requested
@@ -594,7 +685,7 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 
 			if rd.isSearch() && rd.StartPoint == MostRecent {
 				wg.Go(func() {
-					err := ka.searchBackwards(ctx, client, rd.TopicName, int32(partition), offsets[partition], match, send, func() bool {
+					err := ka.searchBackwards(ctx, client, rd.TopicName, int32(partition), offsets[partition], countingMatch, send, func() bool {
 						return msgCount.Load() >= rd.limit()
 					})
 					if err != nil {
@@ -604,88 +695,9 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 				continue
 			}
 
-			wg.Go(func() {
-				readingOffsets := ka.determineReadingOffsets(rd, offsets[partition])
-				log.Debug("Reading offsets determined",
-					"topic", rd.TopicName,
-					"partition", partition,
-					"start", readingOffsets.start,
-					"end", readingOffsets.end,
-				)
-
-				consumer, err := client.ConsumePartition(
-					rd.TopicName,
-					int32(partition),
-					readingOffsets.start,
-				)
-				if err != nil {
-					sendErr(ctx, startedMsg.Err, err)
-					cancelFunc()
-					return
-				}
-				// Closing waits for the in-flight fetch, which the broker holds for
-				// Consumer.MaxWaitTime when there is no new data, so close in the background.
-				defer func() {
-					consumer.AsyncClose()
-					go func() {
-						for range consumer.Messages() {
-						}
-					}()
-					go func() {
-						for range consumer.Errors() {
-						}
-					}()
-				}()
-
-				msgChan := consumer.Messages()
-				live := rd.StartPoint == Live
-
-				// When the last delivered record could not be probed, the end offset might
-				// never be delivered (e.g. transaction control markers), so when no message
-				// arrives for a while, we verify if the end has been reached.
-				idle := time.NewTimer(idleConsumptionTimeout)
-				defer idle.Stop()
-				if offsets[partition].probed {
-					idle.Stop()
-				}
-
-				for {
-					select {
-					case err := <-consumer.Errors():
-						sendErr(ctx, startedMsg.Err, err)
-						return
-					case <-ctx.Done():
-						return
-					case <-idle.C:
-						hwm := consumer.HighWaterMarkOffset()
-						if !live && hwm > 0 && hwm-1 <= readingOffsets.end {
-							log.Debug("No more records available",
-								"topic", rd.TopicName,
-								"partition", partition,
-								"end", readingOffsets.end,
-								"highWaterMark", hwm,
-							)
-							return
-						}
-						idle.Reset(idleConsumptionTimeout)
-					case msg := <-msgChan:
-						if !offsets[partition].probed {
-							if !idle.Stop() {
-								select {
-								case <-idle.C:
-								default:
-								}
-							}
-							idle.Reset(idleConsumptionTimeout)
-						}
-
-						reachedEnd := !live && msg.Offset >= readingOffsets.end
-						if process(msg) || reachedEnd {
-							return
-						}
-					}
-				}
-			})
+			window := ka.determineReadingOffsets(rd, offsets[partition])
+			windows[partition] = window
+			wg.Go(func() { readWindow(partition, window) })
 		}
 	}
 
@@ -695,8 +707,47 @@ func (ka *SaramaKafkaAdmin) doReadRecords(
 		return
 	}
 
+	// extendWindows reads further back (forward for Beginning) until the limit is reached or no
+	// offsets are left. Each round gives the missing records evenly to the partitions that have
+	// more offsets, the partitions with the youngest oldest record first. A round can not deliver
+	// more records than offsets it reads, so the limit is never exceeded.
+	extendWindows := func() {
+		backward := rd.StartPoint != Beginning
+		for ctx.Err() == nil {
+			deficit := rd.limit() - msgCount.Load()
+			if deficit <= 0 {
+				return
+			}
+			candidates := extensionCandidates(rd.PartitionToRead, windows, offsets, backward)
+			if len(candidates) == 0 {
+				return
+			}
+			candidates = rankForExtension(candidates, oldest.snapshot())
+			base, remainder := deficit/int64(len(candidates)), deficit%int64(len(candidates))
+
+			var round sync.WaitGroup
+			for i, p := range candidates {
+				size := base
+				if int64(i) < remainder {
+					size++
+				}
+				ext, covered, ok := nextWindow(windows[p], offsets[p], backward, size)
+				if !ok {
+					continue
+				}
+				windows[p] = covered
+				partition := p
+				round.Go(func() { readWindow(partition, ext) })
+			}
+			round.Wait()
+		}
+	}
+
 	go func() {
 		wg.Wait()
+		if !rd.isSearch() && rd.StartPoint != Live {
+			extendWindows()
+		}
 		time.Sleep(50 * time.Millisecond)
 		startedMsg.shutdown()
 	}()
@@ -737,6 +788,13 @@ func (ka *SaramaKafkaAdmin) deserialize(
 type readingOffsets struct {
 	start int64
 	end   int64
+}
+
+// idleReachedEnd reports whether a partition may stop after the idle timeout. A response with a
+// high water mark arrived and no message is waiting, so every record up to the high water mark
+// has been delivered. It must not stop while fetched messages are still waiting to be read.
+func idleReachedEnd(live bool, hwm int64, pending int) bool {
+	return !live && hwm > 0 && pending == 0
 }
 
 func (ka *SaramaKafkaAdmin) determineReadingOffsets(
@@ -854,22 +912,6 @@ func (ka *SaramaKafkaAdmin) fetchOffsets(
 				"endOffset", endOffset)
 
 			off := offsets{start: startOffset, end: endOffset}
-			if startPoint != Live && startOffset >= 0 && endOffset > startOffset {
-				last, err := ka.lastDataOffset(topicName, int32(partition), startOffset, endOffset)
-				if err != nil {
-					log.Debug("Unable to probe last delivered offset",
-						"topic", topicName,
-						"partition", partition,
-						"err", err)
-				} else {
-					off.end = max(last+1, startOffset)
-					off.probed = true
-					log.Debug("Probed last delivered offset",
-						"topic", topicName,
-						"partition", partition,
-						"lastDataOffset", last)
-				}
-			}
 
 			mu.Lock()
 			offsetsByPartition[partition] = off

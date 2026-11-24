@@ -757,8 +757,8 @@ func TestReadRecords(t *testing.T) {
 			started := time.Now()
 			records := consumeUntilEnded(t, rsm, 10*time.Second)
 			assert.Len(t, records, 10)
-			assert.Less(t, time.Since(started), idleConsumptionTimeout/2,
-				"consumption should end on the last delivered record without waiting")
+			assert.Less(t, time.Since(started), 2*idleConsumptionTimeout,
+				"consumption should end once the idle timeout shows that the end offset is a control record")
 		}
 
 		// clean up
@@ -815,61 +815,6 @@ func createSinglePartitionTopic(t *testing.T, topic string) {
 	case TopicCreationErrMsg:
 		t.Fatal("Unable to create topic", msg.Err)
 	}
-}
-
-func TestLastDataOffset(t *testing.T) {
-	sk := ka.(*SaramaKafkaAdmin)
-
-	t.Run("skips trailing commit marker", func(t *testing.T) {
-		topic := topicName()
-		createSinglePartitionTopic(t, topic)
-		produceTransactionally(t, topic, 10)
-
-		end, err := sk.client.GetOffset(topic, 0, sarama.OffsetNewest)
-		assert.NoError(t, err)
-		assert.Equal(t, int64(11), end)
-
-		last, err := sk.lastDataOffset(topic, 0, 0, end)
-		assert.NoError(t, err)
-		assert.Equal(t, int64(9), last)
-
-		ka.DeleteTopic(topic)
-	})
-
-	t.Run("includes aborted records when reading uncommitted", func(t *testing.T) {
-		topic := topicName()
-		createSinglePartitionTopic(t, topic)
-		produceTransactionally(t, topic, 5)
-		produceAbortedTransaction(t, topic, 3)
-
-		// 5 records + commit marker + 3 records + abort marker
-		var end int64
-		assert.EventuallyWithT(t, func(c *assert.CollectT) {
-			var err error
-			end, err = sk.client.GetOffset(topic, 0, sarama.OffsetNewest)
-			assert.NoError(c, err)
-			assert.Equal(c, int64(10), end)
-		}, 5*time.Second, 50*time.Millisecond)
-
-		last, err := sk.lastDataOffset(topic, 0, 0, end)
-		assert.NoError(t, err)
-		assert.Equal(t, int64(8), last)
-
-		ka.DeleteTopic(topic)
-	})
-
-	t.Run("no delivered records in range", func(t *testing.T) {
-		topic := topicName()
-		createSinglePartitionTopic(t, topic)
-		produceTransactionally(t, topic, 2)
-
-		// only the commit marker at offset 2
-		last, err := sk.lastDataOffset(topic, 0, 2, 3)
-		assert.NoError(t, err)
-		assert.Equal(t, int64(-1), last)
-
-		ka.DeleteTopic(topic)
-	})
 }
 
 func produceTransactionally(t *testing.T, topic string, count int) {
@@ -1473,4 +1418,44 @@ func TestSearchRecords(t *testing.T) {
 		}
 		assert.Equal(t, 30, count)
 	})
+}
+
+func TestReadRecordsFillsLimitWithUnevenPartitions(t *testing.T) {
+	topic := topicName()
+	msg := ka.CreateTopic(TopicCreationDetails{Name: topic, NumPartitions: 4, ReplicationFactor: 1}).(TopicCreationStartedMsg)
+	if _, ok := msg.AwaitCompletion().(TopicCreatedMsg); !ok {
+		t.Fatal("Unable to create topic")
+	}
+	defer ka.DeleteTopic(topic)
+
+	// partitions hold very different amounts of records
+	counts := []int{200, 3, 40, 1}
+	for partition, count := range counts {
+		for i := 0; i < count; i++ {
+			p := partition
+			psm := ka.PublishRecord(&ProducerRecord{
+				Topic:     topic,
+				Key:       strconv.Itoa(i),
+				Value:     []byte("{}"),
+				Partition: &p,
+			})
+			select {
+			case err := <-psm.Err:
+				t.Fatal("Unable to publish", err)
+			case <-psm.Published:
+			}
+		}
+	}
+
+	for _, sp := range []StartPoint{MostRecent, Beginning} {
+		rsm := ka.ReadRecords(context.Background(), ReadDetails{
+			TopicName:       topic,
+			PartitionToRead: []int{0, 1, 2, 3},
+			StartPoint:      sp,
+			Limit:           100,
+		}).(*ReadingStartedMsg)
+
+		records := consumeUntilEnded(t, rsm, 20*time.Second)
+		assert.Len(t, records, 100, "start point %d", sp)
+	}
 }
