@@ -123,9 +123,8 @@ func (m *Model) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		tableView := m.border.View(ktable.View(m.table))
 		m.previewVisible = previewW > 0
 		if m.previewVisible {
-			tableView = lipgloss.JoinHorizontal(lipgloss.Top,
-				tableView,
-				m.preview.View(m.selectedRecord(), previewW, lipgloss.Height(tableView)))
+			side := m.preview.View(m.selectedRecord(), previewW, lipgloss.Height(tableView))
+			tableView = lipgloss.JoinHorizontal(lipgloss.Top, tableView, side)
 		}
 		views = append(views, tableView)
 	}
@@ -410,7 +409,8 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 	if m.search != nil || m.cmdBar.IsFocussed() {
 		return shortcuts
 	}
-	return append(shortcuts, statusbar.Shortcut{Name: "Decoders", Keybinding: "d"})
+	shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Decoders", Keybinding: "d"})
+	return shortcuts
 }
 
 func (m *Model) pageShortcuts() []statusbar.Shortcut {
