@@ -5,6 +5,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"fmt"
 	"image/color"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -63,15 +64,26 @@ func (m *Model) View(_ *kontext.ProgramKtx, _ *ui.Renderer) string {
 	return builder.String()
 }
 
+var (
+	actionChipsPrevious = keymap.Define("chips.previous", "chips", "left")
+	actionChipsNext     = keymap.Define("chips.next", "chips", "right")
+	actionChipsActivate = keymap.Define("chips.activate", "chips", "enter")
+)
+
+// PreviousHint is the key that selects the previous chip, e.g. "h/←".
+func PreviousHint() string { return keymap.Hint(actionChipsPrevious) }
+
+// NextHint is the key that selects the next chip, e.g. "l/→".
+func NextHint() string { return keymap.Hint(actionChipsNext) }
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "h", "left":
+		if keymap.Matches(msg, actionChipsPrevious) {
 			m.prevElem()
-		case "l", "right":
+		} else if keymap.Matches(msg, actionChipsNext) {
 			m.nextElem()
-		case "enter":
+		} else if keymap.Matches(msg, actionChipsActivate) {
 			m.activateElem = m.selectedIdx
 		}
 	}

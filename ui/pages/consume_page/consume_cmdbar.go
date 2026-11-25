@@ -3,12 +3,16 @@ package consume_page
 import (
 	tea "charm.land/bubbletea/v2"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/ui"
 	"kfee/ui/components/cmdbar"
 	"kfee/ui/components/notifier"
 	"kfee/ui/components/statusbar"
 )
+
+// recordsSort opens the sort bar, it is active next to the keys of the records list.
+var recordsSort = keymap.Define("records.sort", "records", "f3")
 
 type ConsumptionCmdBar struct {
 	notifierWidget cmdbar.CmdBar
@@ -37,8 +41,8 @@ func (c *ConsumptionCmdBar) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "f3":
+		switch {
+		case keymap.Matches(msg, recordsSort):
 			active, _, cmd := c.sortByCBar.Update(msg)
 			if !active {
 				c.active = nil

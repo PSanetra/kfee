@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -19,6 +20,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
+)
+
+var (
+	actionBack  = keymap.Define("create_topic.back", "create_topic", "esc")
+	actionReset = keymap.Define("create_topic.reset", "create_topic", "ctrl+r")
 )
 
 type formState int
@@ -86,9 +92,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case bsp.TickMsg:
 		return tea.Batch(cmds...)
 	case tea.KeyPressMsg:
-		if msg.String() == "esc" && m.formState != loading {
+		if keymap.Matches(msg, actionBack) && m.formState != loading {
 			return m.navigator.ToTopicsPage(m.createdAtLeastOneTopic)
-		} else if msg.String() == "ctrl+r" {
+		} else if keymap.Matches(msg, actionReset) {
 			m.formValues.name = ""
 			m.formValues.cleanupPolicy = ""
 			m.formValues.config = ""
@@ -290,8 +296,8 @@ func New(tc kadmin.TopicCreator, navigator tabs.TopicsTabNavigator) *Model {
 		{"Confirm", "enter"},
 		{"Next Field", "tab"},
 		{"Prev. Field", "s-tab"},
-		{"Reset Form", "C-r"},
-		{"Go Back", "esc"},
+		{"Reset Form", keymap.Hint(actionReset)},
+		{"Go Back", keymap.Hint(actionBack)},
 	}
 	t.initForm(initial)
 	notifierCmdBar := cmdbar.NewNotifierCmdBar("create-topic-page")

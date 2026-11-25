@@ -21,15 +21,6 @@ func TestTabs(t *testing.T) {
 			assert.Equal(t, Label("tab2"), tabs.ActiveTab().Label)
 		})
 
-		t.Run("Next (C-l) tab when available", func(t *testing.T) {
-			// given
-			tabs := New(Tab{Title: "tab1", Label: "tab1"}, Tab{Title: "tab2", Label: "tab2"})
-			// when
-			tabs.Update(tests.Ctrl(tea.KeyRight))
-			// then
-			assert.Equal(t, Label("tab2"), tabs.ActiveTab().Label)
-		})
-
 		t.Run("Next tab when last", func(t *testing.T) {
 			// given
 			tabs := New(Tab{Title: "tab1", Label: "tab1"}, Tab{Title: "tab2", Label: "tab2"})
@@ -38,16 +29,6 @@ func TestTabs(t *testing.T) {
 			tabs.Update(tests.Ctrl(tea.KeyRight))
 			// then
 			assert.Equal(t, Label("tab2"), tabs.ActiveTab().Label)
-		})
-
-		t.Run("Previous (C-h) tab when available", func(t *testing.T) {
-			// given
-			tabs := New(Tab{Title: "tab1", Label: "tab1"}, Tab{Title: "tab2", Label: "tab2"})
-			tabs.Update(tests.Ctrl(tea.KeyRight))
-			// when
-			tabs.Update(tests.Ctrl('h'))
-			// then
-			assert.Equal(t, Label("tab1"), tabs.ActiveTab().Label)
 		})
 
 		t.Run("Previous (C-←) tab when available", func(t *testing.T) {
@@ -99,7 +80,7 @@ func TestTabs(t *testing.T) {
 			// when
 			actual := ansi.Strip(tabs.View(tests.Kontext, tests.Renderer))
 			// then
-			assert.Equal(t, "╭──────╮╭──────╮               \n│ tab1 ││ tab2 │  ≪ F1 » help  \n┘      └┴──────┴────────────────────────────────────────────────────────────────────────────────────", actual)
+			assert.Equal(t, "╭──────╮╭──────╮\n│ tab1 ││ tab2 │\n┘      └┴──────┴────────────────────────────────────────────────────────────────────────────────────", actual)
 		})
 
 		t.Run("Single tab no shortcut", func(t *testing.T) {

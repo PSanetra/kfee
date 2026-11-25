@@ -2,11 +2,14 @@ package cgroups_topics_page
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/ui"
 	"kfee/ui/components/cmdbar"
 	"kfee/ui/components/statusbar"
 )
+
+var actionSearch = keymap.Define("cgroup_offsets.search", "cgroup_offsets", "/")
 
 type CGroupCmdbar[T any] struct {
 	searchWidget     cmdbar.CmdBar
@@ -50,8 +53,8 @@ func (m *CGroupCmdbar[T]) Update(msg tea.Msg) (tea.Msg, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "/":
+		switch {
+		case keymap.Matches(msg, actionSearch):
 			active, pmsg, cmd := m.searchWidget.Update(msg)
 			if active {
 				m.active = m.searchWidget

@@ -3,6 +3,7 @@ package cgroups_topics_page
 import (
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -24,6 +25,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
 	"github.com/dustin/go-humanize"
+)
+
+var (
+	actionBack        = keymap.Define("cgroup_offsets.back", "cgroup_offsets", "esc")
+	actionRefresh     = keymap.Define("cgroup_offsets.refresh", "cgroup_offsets", "f5")
+	actionSwitchTable = keymap.Define("cgroup_offsets.switch_table", "cgroup_offsets", "tab")
 )
 
 type tableFocus int
@@ -149,18 +156,18 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, actionBack):
 			// only accept when the table is focussed
 			if !m.cmdBar.IsFocussed() {
 				return m.navigator.ToCGroupsPage()
 			}
-		case "f5":
+		case keymap.Matches(msg, actionRefresh):
 			m.state = stateOffsetsLoading
 			return func() tea.Msg {
 				return m.lister.ListOffsets(m.groupName)
 			}
-		case "tab":
+		case keymap.Matches(msg, actionSwitchTable):
 			// only accept when the table is focussed
 			if !m.cmdBar.IsFocussed() {
 				if m.tableFocus == topicFocus {
@@ -279,9 +286,9 @@ func (m *Model) selectedRow() string {
 
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
-		{Name: "Go Back", Keybinding: "esc"},
-		{Name: "Search", Keybinding: "/"},
-		{Name: "Refresh", Keybinding: "F5"},
+		{Name: "Go Back", Keybinding: keymap.Hint(actionBack)},
+		{Name: "Search", Keybinding: keymap.Hint(actionSearch)},
+		{Name: "Refresh", Keybinding: keymap.Hint(actionRefresh)},
 	}
 }
 
@@ -290,11 +297,11 @@ func (m *Model) Title() string {
 }
 
 func New(lister kadmin.OffsetLister, group string, navigator tabs.CGroupsTabNavigator) (*Model, tea.Cmd) {
-	tt := table.New(
+	tt := ktable.NewTable(
 		table.WithFocused(true),
 		table.WithStyles(styles.Table.Styles),
 	)
-	ot := table.New(
+	ot := ktable.NewTable(
 		table.WithFocused(true),
 		table.WithStyles(styles.Table.Styles),
 	)

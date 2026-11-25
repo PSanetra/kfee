@@ -4,6 +4,7 @@ package decoders_page
 import (
 	"fmt"
 	"kfee/config"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/serdes"
 	"kfee/styles"
@@ -34,6 +35,16 @@ type SchemaCopiedMsg struct{}
 type CopyErrorMsg struct {
 	Err error
 }
+
+// Actions of the decoders list, and of the schema and transformations shown for a decoder.
+var (
+	decodersShow        = keymap.Define("decoders.show_transformations", "decoders", "enter")
+	decodersCopy        = keymap.Define("decoders.copy_schema", "decoders", "c")
+	decodersBack        = keymap.Define("decoders.back", "decoders", "esc")
+	decodersToggleFocus = keymap.Define("decoders.toggle_focus", "decoders", "left", "right")
+	decodersActivate    = keymap.Define("decoders.activate", "decoders", "a", "enter")
+	decodersCloseDetail = keymap.Define("decoders.close_detail", "decoders", "esc")
+)
 
 // avroPrefix marks the decoder ID of an Avro subject, see serdes and kadmin.
 const avroPrefix = "avro:"
@@ -209,16 +220,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
 	if key, ok := msg.(tea.KeyPressMsg); ok {
-		if key.String() == "c" && len(m.decoders) > 0 {
+		if keymap.Matches(key, decodersCopy) && len(m.decoders) > 0 {
 			return m.copySchema()
 		}
 		if m.detail {
 			return m.updateDetail(key)
 		}
-		switch key.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(key, decodersBack):
 			return m.navigator.ToCachedConsumptionPage()
-		case "enter":
+		case keymap.Matches(key, decodersShow):
 			if len(m.decoders) > 0 {
 				m.openDetail()
 			}
@@ -243,11 +254,11 @@ func (m *Model) openDetail() {
 // updateDetail toggles the focus, scrolls the schema or moves through the transformations, and
 // activates the transformation under the cursor. esc goes back to the decoders.
 func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
-	switch key.String() {
-	case "esc":
+	switch {
+	case keymap.Matches(key, decodersCloseDetail):
 		m.detail = false
 		return nil
-	case "h", "left", "right":
+	case keymap.Matches(key, decodersToggleFocus):
 		m.focusSchema = !m.focusSchema
 		return nil
 	}
@@ -259,13 +270,13 @@ func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
 	}
 
 	history := m.history[m.selected().id]
-	switch key.String() {
-	case "up":
+	switch {
+	case keymap.Matches(key, keymap.TableUp):
 		// the newest entry is drawn at the top, so up goes to the next newer entry
 		m.entry = min(m.entry+1, len(history)-1)
-	case "down":
+	case keymap.Matches(key, keymap.TableDown):
 		m.entry = max(m.entry-1, 0)
-	case "a", "enter":
+	case keymap.Matches(key, decodersActivate):
 		m.activate()
 	}
 	return nil
@@ -290,25 +301,26 @@ func (m *Model) activate() {
 
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	if m.detail {
-		shortcuts := []statusbar.Shortcut{{Name: "Toggle Schema/Transformations", Keybinding: "h/←/→"}}
+		shortcuts := []statusbar.Shortcut{{Name: "Toggle Schema/Transformations", Keybinding: keymap.Hint(decodersToggleFocus)}}
 		if m.focusSchema {
+			// the schema is scrolled by its viewport, which keeps its own keys
 			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Scroll", Keybinding: "↑/↓"})
 		} else {
 			shortcuts = append(shortcuts,
-				statusbar.Shortcut{Name: "Move", Keybinding: "↑/↓"},
-				statusbar.Shortcut{Name: "Activate", Keybinding: "a/enter"},
+				statusbar.Shortcut{Name: "Move", Keybinding: keymap.Hint(keymap.TableUp) + "/" + keymap.Hint(keymap.TableDown)},
+				statusbar.Shortcut{Name: "Activate", Keybinding: keymap.Hint(decodersActivate)},
 			)
 		}
 		return append(shortcuts,
-			statusbar.Shortcut{Name: "Copy Schema", Keybinding: "c"},
-			statusbar.Shortcut{Name: "Back", Keybinding: "esc"},
+			statusbar.Shortcut{Name: "Copy Schema", Keybinding: keymap.Hint(decodersCopy)},
+			statusbar.Shortcut{Name: "Back", Keybinding: keymap.Hint(decodersCloseDetail)},
 		)
 	}
-	shortcuts := []statusbar.Shortcut{{Name: "Show Transformations", Keybinding: "enter"}}
+	shortcuts := []statusbar.Shortcut{{Name: "Show Transformations", Keybinding: keymap.Hint(decodersShow)}}
 	if len(m.decoders) > 0 {
-		shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Copy Schema", Keybinding: "c"})
+		shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Copy Schema", Keybinding: keymap.Hint(decodersCopy)})
 	}
-	return append(shortcuts, statusbar.Shortcut{Name: "Go Back", Keybinding: "esc"})
+	return append(shortcuts, statusbar.Shortcut{Name: "Go Back", Keybinding: keymap.Hint(decodersBack)})
 }
 
 func (m *Model) Title() string {

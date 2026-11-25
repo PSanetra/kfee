@@ -4,10 +4,16 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"charm.land/log/v2"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
 	"kfee/ui/components/statusbar"
+)
+
+var (
+	actionConfirm = keymap.Define("cmdbar.confirm", "cmdbar", "enter")
+	actionCancel  = keymap.Define("cmdbar.cancel", "cmdbar", "esc")
 )
 
 type state int
@@ -30,9 +36,9 @@ func (s *SearchCmdBar) IsFocussed() bool {
 
 func (s *SearchCmdBar) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
-		{Name: "Confirm", Keybinding: "enter"},
-		{Name: "Cancel", Keybinding: "esc"},
-		{Name: "Cancel", Keybinding: "/"},
+		{Name: "Confirm", Keybinding: keymap.Hint(actionConfirm)},
+		{Name: "Cancel", Keybinding: keymap.Hint(actionCancel)},
+		{Name: "Cancel", Keybinding: keymap.Hint(actionSearch)},
 		{Name: "Clear", Keybinding: "C-u"},
 	}
 }
@@ -60,12 +66,12 @@ func (s *SearchCmdBar) Update(msg tea.Msg) (bool, tea.Msg, tea.Cmd) {
 }
 
 func (s *SearchCmdBar) handleKeyMsg(msg tea.KeyPressMsg) (bool, tea.Msg, tea.Cmd) {
-	switch msg.String() {
-	case "/":
+	switch {
+	case keymap.Matches(msg, actionSearch):
 		s.toggleSearch()
-	case "enter":
+	case keymap.Matches(msg, actionConfirm):
 		return s.confirmSearch(msg)
-	case "esc":
+	case keymap.Matches(msg, actionCancel):
 		s.cancelSearch()
 	default:
 		if s.state == searching {

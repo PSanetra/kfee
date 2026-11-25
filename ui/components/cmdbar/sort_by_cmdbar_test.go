@@ -58,8 +58,8 @@ func TestSortByCmdBar(t *testing.T) {
 
 		bar.Update(tests.Key(tea.KeyRight))
 		bar.Update(tests.Key(tea.KeyLeft))
-		bar.Update(tests.Key('h'))
-		bar.Update(tests.Key('l'))
+		bar.Update(tests.Key(tea.KeyLeft))
+		bar.Update(tests.Key(tea.KeyRight))
 
 		bar.Update(tests.Key(tea.KeyEnter))
 

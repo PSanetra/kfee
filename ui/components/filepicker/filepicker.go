@@ -12,10 +12,26 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"kfee/keymap"
 	"kfee/styles"
 )
 
 const defaultHeight = 12
+
+var (
+	actionUp       = keymap.Define("filepicker.up", "filepicker", "up", "ctrl+p")
+	actionDown     = keymap.Define("filepicker.down", "filepicker", "down", "ctrl+n")
+	actionPageUp   = keymap.Define("filepicker.page_up", "filepicker", "pgup")
+	actionPageDown = keymap.Define("filepicker.page_down", "filepicker", "pgdown")
+	actionOpen     = keymap.Define("filepicker.open", "filepicker", "right", "enter")
+	actionParent   = keymap.Define("filepicker.parent", "filepicker", "left")
+)
+
+// OpenHint is the keys that open the selected folder, e.g. "→/enter".
+func OpenHint() string { return keymap.Hint(actionOpen) }
+
+// ParentHint is the key that goes to the parent folder, e.g. "←".
+func ParentHint() string { return keymap.Hint(actionParent) }
 
 type entry struct {
 	label  string
@@ -51,16 +67,16 @@ func (m *Model) Dir() string {
 
 // Update handles a key press and returns the chosen file, if the user chose one.
 func (m *Model) Update(msg tea.KeyPressMsg) (chosen string) {
-	switch msg.String() {
-	case "up", "ctrl+p":
+	switch {
+	case keymap.Matches(msg, actionUp):
 		m.move(-1)
-	case "down", "ctrl+n":
+	case keymap.Matches(msg, actionDown):
 		m.move(1)
-	case "pgup":
+	case keymap.Matches(msg, actionPageUp):
 		m.move(-m.height)
-	case "pgdown":
+	case keymap.Matches(msg, actionPageDown):
 		m.move(m.height)
-	case "right", "enter":
+	case keymap.Matches(msg, actionOpen):
 		if m.cursor < len(m.visible) {
 			e := m.visible[m.cursor]
 			if e.isDir {
@@ -69,9 +85,10 @@ func (m *Model) Update(msg tea.KeyPressMsg) (chosen string) {
 				return e.path
 			}
 		}
-	case "left":
+	case keymap.Matches(msg, actionParent):
 		m.chdir(filepath.Dir(m.dir))
-	case "backspace":
+	case msg.String() == "backspace":
+		// editing the filter text, the picker goes up a directory when there is none
 		if m.filter != "" {
 			runes := []rune(m.filter)
 			m.filter = string(runes[:len(runes)-1])

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"kfee/config"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/serdes"
 	"kfee/styles"
@@ -26,6 +27,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+)
+
+// Actions of the record view.
+var (
+	detailsCopy         = keymap.Define("details.copy", "details", "c")
+	detailsNextRecord   = keymap.Define("details.next_record", "details", "ctrl+n")
+	detailsPrevRecord   = keymap.Define("details.prev_record", "details", "ctrl+p")
+	detailsTransform    = keymap.Define("details.transform", "details", "e")
+	detailsBack         = keymap.Define("details.back", "details", "esc")
+	detailsToggleFocus  = keymap.Define("details.toggle_focus", "details", "left", "right")
+	detailsProtobuf     = keymap.Define("details.protobuf", "details", "p")
+	detailsToggleOrig   = keymap.Define("details.toggle_original", "details", "t")
+	detailsToggleSchema = keymap.Define("details.toggle_schema", "details", "tab")
 )
 
 type focus bool
@@ -183,27 +197,27 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, detailsBack):
 			return m.navigator.ToCachedConsumptionPage()
-		case "p":
+		case keymap.Matches(msg, detailsProtobuf) && !m.isAvro():
 			m.openProtoModal()
-		case "ctrl+n":
+		case keymap.Matches(msg, detailsNextRecord):
 			cmds = m.handleNavigateToNext(cmds)
-		case "ctrl+p":
+		case keymap.Matches(msg, detailsPrevRecord):
 			cmds = m.handleNavigateToPrev(cmds)
-		case "h", "left", "right":
+		case keymap.Matches(msg, detailsToggleFocus):
 			if len(m.record.Headers) >= 1 {
 				m.focus = !m.focus
 				m.border.Focused = m.focus == mainViewFocus
 			}
-		case "e":
+		case keymap.Matches(msg, detailsTransform):
 			m.openTransformEditor()
-		case "t":
+		case keymap.Matches(msg, detailsToggleOrig):
 			m.toggleOriginal()
-		case "c":
+		case keymap.Matches(msg, detailsCopy):
 			cmds = m.handleCopy(cmds)
-		case "tab":
+		case keymap.Matches(msg, detailsToggleSchema):
 			if m.record.Payload.Schema != "" && m.focus == mainViewFocus {
 				m.state = !m.state
 				m.border.NextTab()
@@ -509,6 +523,11 @@ func (m *Model) updatedFocussedArea(msg tea.Msg, cmds []tea.Cmd) []tea.Cmd {
 	return cmds
 }
 
+// isAvro reports whether the record is decoded with an Avro schema. Protobuf decoders do not apply to these.
+func (m *Model) isAvro() bool {
+	return strings.HasPrefix(m.record.Payload.RuleID, "avro:")
+}
+
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	if m.transformEditor != nil {
 		return m.transformEditor.Shortcuts()
@@ -516,7 +535,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 	if m.protoModal != nil {
 		return m.protoModal.Shortcuts()
 	}
-	protoShortcut := statusbar.Shortcut{Name: "Protobuf Decoder", Keybinding: "p"}
+	protoShortcut := statusbar.Shortcut{Name: "Protobuf Decoder", Keybinding: keymap.Hint(detailsProtobuf)}
 
 	whatToCopy := "Header Value"
 	if m.focus == mainViewFocus {
@@ -528,17 +547,20 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 	}
 	if m.err == nil {
 		shortcuts := []statusbar.Shortcut{
-			{"Toggle Headers/Content", "h/left/right"},
-			{"Go Back", "esc"},
-			{"Copy " + whatToCopy, "c"},
-			protoShortcut,
+			// keymap.Hint would show these keys differently than the labels, so they stay as written
+			{"Toggle Headers/Content", keymap.Hint(detailsToggleFocus)},
+			{"Go Back", keymap.Hint(detailsBack)},
+			{"Copy " + whatToCopy, keymap.Hint(detailsCopy)},
+		}
+		if !m.isAvro() {
+			shortcuts = append(shortcuts, protoShortcut)
 		}
 
 		if m.record.Payload.RuleID != "" {
-			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Transform", Keybinding: "e"})
+			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Transform", Keybinding: keymap.Hint(detailsTransform)})
 		}
 		if m.transformed != "" {
-			shortcuts = append(shortcuts, statusbar.Shortcut{Name: m.transformToggleName(), Keybinding: "t"})
+			shortcuts = append(shortcuts, statusbar.Shortcut{Name: m.transformToggleName(), Keybinding: keymap.Hint(detailsToggleOrig)})
 		}
 
 		if len(m.records) > 1 {
@@ -551,7 +573,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		if m.config.ActiveCluster().HasSchemaRegistry() && m.focus == mainViewFocus {
 			shortcuts = append(shortcuts, statusbar.Shortcut{
 				Name:       "Toggle Record/Schema",
-				Keybinding: "<tab>",
+				Keybinding: keymap.Hint(detailsToggleSchema),
 			})
 		}
 
@@ -559,7 +581,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 	}
 
 	return []statusbar.Shortcut{
-		{"Go Back", "esc"},
+		{"Go Back", keymap.Hint(detailsBack)},
 		protoShortcut,
 	}
 }

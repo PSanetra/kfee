@@ -47,8 +47,8 @@ func TestStatusbar(t *testing.T) {
 		sb.SetProvider(TestProvider{})
 
 		assert.Equal(t, []statusbar.Shortcut{
-			{Name: "Switch Tabs", Keybinding: "C-←/→/h/l"},
 			{Name: "Open", Keybinding: "C-o"},
+			{Name: "Switch Tabs", Keybinding: "C-left/C-right"},
 		}, sb.Shortcuts())
 		assert.Equal(t, "test provider", sb.Title())
 

@@ -36,7 +36,7 @@ func TestRecordDetailsPage(t *testing.T) {
 		m := New(record, "", []kadmin.ConsumerRecord{*record}, 0, clip, ktx, tabs.NewMockTopicsTabNavigator())
 		m.View(ktx, tests.Renderer)
 
-		m.Update(tests.Key('h'))
+		m.Update(tests.Key(tea.KeyLeft))
 		m.Update(tests.Key(tea.KeyDown))
 		assert.Contains(t, m.Shortcuts(), statusbar.Shortcut{Name: "Copy Header Value", Keybinding: "c"})
 		msgs := tests.ExecuteBatchCmd(m.Update(tests.Key('c')))
@@ -90,7 +90,7 @@ func TestRecordDetailsPage(t *testing.T) {
 
 		assert.Equal(t, mainViewFocus, m.focus)
 
-		m.Update(tests.Key('h'))
+		m.Update(tests.Key(tea.KeyLeft))
 
 		assert.Equal(t, headersViewFocus, m.focus)
 
@@ -200,7 +200,7 @@ func TestRecordDetailsPage(t *testing.T) {
 
 			assert.Contains(t, shortcuts, statusbar.Shortcut{
 				Name:       "Toggle Record/Schema",
-				Keybinding: "<tab>",
+				Keybinding: "tab",
 			})
 		})
 
@@ -442,7 +442,7 @@ func TestRecordDetailsPage(t *testing.T) {
 
 		m.View(tests.NewKontext(), tests.Renderer)
 
-		m.Update(tests.Key('h'))
+		m.Update(tests.Key(tea.KeyLeft))
 		m.Update(tests.Key(tea.KeyDown))
 		m.Update(tests.Key(tea.KeyDown))
 
@@ -493,7 +493,7 @@ func TestRecordDetailsPage(t *testing.T) {
 
 		m.View(tests.NewKontext(), tests.Renderer)
 
-		m.Update(tests.Key('h'))
+		m.Update(tests.Key(tea.KeyLeft))
 		m.Update(tests.Key(tea.KeyDown))
 		m.Update(tests.Key(tea.KeyDown))
 

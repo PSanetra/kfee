@@ -3,6 +3,7 @@ package subjects_page
 import (
 	"charm.land/log/v2"
 	"fmt"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/sradmin"
 	"kfee/styles"
@@ -21,6 +22,13 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+)
+
+var (
+	actionSwitchTab = keymap.Define("subjects.switch_tab", "subjects", "tab")
+	actionRefresh   = keymap.Define("subjects.refresh", "subjects", "f5")
+	actionCreate    = keymap.Define("subjects.create", "subjects", "ctrl+n")
+	actionView      = keymap.Define("subjects.view", "subjects", "enter")
 )
 
 type state int
@@ -113,20 +121,20 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "tab":
+		switch {
+		case keymap.Matches(msg, actionSwitchTab):
 			m.border.NextTab()
 			m.table.GotoTop()
 			m.tcb.Reset()
-		case "f5":
+		case keymap.Matches(msg, actionRefresh):
 			m.state = loading
 			m.subjects = nil
 			return m.lister.ListSubjects
-		case "ctrl+n":
+		case keymap.Matches(msg, actionCreate):
 			if m.state != loading && m.state != deleting {
 				return m.navigator.ToCreateSubjectPage()
 			}
-		case "enter":
+		case keymap.Matches(msg, actionView):
 			// only accept enter when the table is focussed
 			if !m.tcb.IsFocussed() {
 				// ignore enter when there are no schemas loaded
@@ -267,24 +275,24 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 				deleteType = "soft"
 				tabShortcut = statusbar.Shortcut{
 					Name:       "Deleted Subjects",
-					Keybinding: "tab",
+					Keybinding: keymap.Hint(actionSwitchTab),
 				}
 			} else {
 				deleteType = "hard"
 				tabShortcut = statusbar.Shortcut{
 					Name:       "Active Subjects",
-					Keybinding: "tab",
+					Keybinding: keymap.Hint(actionSwitchTab),
 				}
 			}
 			extraShortcuts = []statusbar.Shortcut{
 				tabShortcut,
 				{
 					Name:       "Search",
-					Keybinding: "/",
+					Keybinding: cmdbar.SearchHint(),
 				},
 				{
 					Name:       fmt.Sprintf("Delete (%s)", deleteType),
-					Keybinding: "F2",
+					Keybinding: cmdbar.DeleteHint(),
 				},
 			}
 		}
@@ -292,7 +300,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		return append([]statusbar.Shortcut{
 			{
 				Name:       "Register New Schema",
-				Keybinding: "C-n",
+				Keybinding: keymap.Hint(actionCreate),
 			},
 			//{
 			//	Name:       "Evolve Selected Schema",
@@ -300,7 +308,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 			//},
 			{
 				Name:       "Refresh",
-				Keybinding: "F5",
+				Keybinding: keymap.Hint(actionRefresh),
 			},
 		}, extraShortcuts...)
 	} else {

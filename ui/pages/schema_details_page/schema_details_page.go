@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"fmt"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/sradmin"
 	"kfee/styles"
@@ -18,6 +19,12 @@ import (
 	"sort"
 	"strconv"
 	"time"
+)
+
+var (
+	actionCopy   = keymap.Define("schema_details.copy", "schema_details", "c")
+	actionSelect = keymap.Define("schema_details.select", "schema_details", "enter")
+	actionBack   = keymap.Define("schema_details.back", "schema_details", "esc")
 )
 
 type Model struct {
@@ -104,8 +111,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, actionBack):
 			if m.cmdbar.active != nil {
 				pmsg, _ := m.cmdbar.Update(msg, m.versionChips.SelectedLabel())
 				if pmsg == nil {
@@ -113,7 +120,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				}
 			}
 			return m.navigator.ToSubjectsPage(m.atLeastOneSchemaDeleted)
-		case "enter":
+		case keymap.Matches(msg, actionSelect):
 			if m.cmdbar.active == nil {
 				version, _ := strconv.Atoi(m.versionChips.SelectedLabel())
 				m.activeSchema = nil
@@ -126,7 +133,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					panic("No schema found that matches " + m.versionChips.SelectedLabel())
 				}
 			}
-		case "c":
+		case keymap.Matches(msg, actionCopy):
 			err := m.clipWriter.Write(m.activeSchema.Value)
 			if err != nil {
 				cmds = append(cmds, ui.PublishMsg(CopyErrorMsg{Err: err}))
@@ -178,27 +185,27 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
 		{
 			Name:       "Prev Version",
-			Keybinding: "h/←",
+			Keybinding: chips.PreviousHint(),
 		},
 		{
 			Name:       "Next Version",
-			Keybinding: "l/→",
+			Keybinding: chips.NextHint(),
 		},
 		{
 			Name:       "Select Version",
-			Keybinding: "enter",
+			Keybinding: keymap.Hint(actionSelect),
 		},
 		{
 			Name:       "Delete Version",
-			Keybinding: "F2",
+			Keybinding: keymap.Hint(actionDeleteVersion),
 		},
 		{
 			Name:       "Copy Schema",
-			Keybinding: "c",
+			Keybinding: keymap.Hint(actionCopy),
 		},
 		{
 			Name:       "Go Back",
-			Keybinding: "esc",
+			Keybinding: keymap.Hint(actionBack),
 		},
 	}
 }

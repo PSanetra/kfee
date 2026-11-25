@@ -1,13 +1,19 @@
-// Package help renders the keybindings modal shown on F1.
+// Package help renders the keybindings modal shown on the help key.
 package help
 
 import (
+	"fmt"
+	"kfee/keymap"
 	"kfee/styles"
 	"kfee/ui/components/statusbar"
+	"kfee/ui/components/tab"
 	"strings"
 
 	lg "charm.land/lipgloss/v2"
 )
+
+// ActionClose closes the help modal. It is the only key handled while the modal is open.
+var ActionClose = keymap.Define("help.close", "help", "esc", "q")
 
 // chromeHeight is the number of lines the modal uses besides the shortcut rows:
 // border (2), vertical padding (2), title + blank line (2), blank line + footer (2).
@@ -43,7 +49,7 @@ func View(title string, shortcuts []statusbar.Shortcut, maxHeight int) string {
 		"",
 		lg.JoinHorizontal(lg.Top, body...),
 		"",
-		styles.Help.Footer.Render("esc / F1 close"),
+		styles.Help.Footer.Render(fmt.Sprintf("%s / %s close", keymap.Hint(ActionClose), keymap.Hint(tab.ActionHelp))),
 	))
 }
 

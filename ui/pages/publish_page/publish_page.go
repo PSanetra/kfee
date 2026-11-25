@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -20,6 +21,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	actionBack  = keymap.Define("publish.back", "publish", "esc")
+	actionReset = keymap.Define("publish.reset", "publish", "ctrl+r")
 )
 
 type state int
@@ -90,13 +96,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return notifier.HideNotificationMsg{}
 			})
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, actionBack):
 			if m.state == publishing {
 				return nil
 			}
 			return m.navigator.ToTopicsPage(false)
-		case "ctrl+r":
+		case keymap.Matches(msg, actionReset):
 			m.resetForm()
 		}
 	}
@@ -150,8 +156,8 @@ func (v *formValues) parsedHeaders() map[string]string {
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
 		{"Confirm", "enter"},
-		{"Reset Form", "C-r"},
-		{"Go Back", "esc"},
+		{"Reset Form", keymap.Hint(actionReset)},
+		{"Go Back", keymap.Hint(actionBack)},
 	}
 }
 

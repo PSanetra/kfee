@@ -5,6 +5,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"fmt"
 	"image/color"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/sradmin"
 	"kfee/styles"
@@ -13,6 +14,8 @@ import (
 	"kfee/ui/components/notifier"
 	"strconv"
 )
+
+var actionDeleteVersion = keymap.Define("schema_details.delete", "schema_details", "f2")
 
 type CmdBar struct {
 	notifierWidget cmdbar.CmdBar
@@ -49,8 +52,8 @@ func (c *CmdBar) Update(msg tea.Msg, selection string) (tea.Msg, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "f2":
+		switch {
+		case keymap.Matches(msg, actionDeleteVersion):
 			active, pmsg, cmd := c.deleteCmdBar.Update(msg)
 			if active {
 				c.active = c.deleteCmdBar
@@ -113,7 +116,7 @@ func NewCmdBar(deleteFunc cmdbar.DeleteFn[int], schemaDeletedNotifier cmdbar.Not
 	return &CmdBar{
 		notifierWidget: notifierCmdBar,
 		active:         notifierCmdBar,
-		deleteCmdBar:   cmdbar.NewDeleteCmdBar[int](deleteMsgFunc, deleteFunc),
+		deleteCmdBar:   cmdbar.NewDeleteCmdBar[int](deleteMsgFunc, deleteFunc, cmdbar.WithDeleteAction[int](actionDeleteVersion)),
 	}
 }
 

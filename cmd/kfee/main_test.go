@@ -111,29 +111,29 @@ func TestKfee(t *testing.T) {
 
 			var expectedLayout = "" +
 				"╭────────╮╭─────────────────╮╭─────────────────╮╭──────────╮╭──────────╮                            \n" +
-				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │  ≪ F1 » help               \n" +
+				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │                            \n" +
 				"┘        └┴─────────────────┴┴─────────────────┴┴──────────┴┴──────────┴────────────────────────────"
 			assert.Contains(t, view, expectedLayout)
 
 			model.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl})
 
-			model.Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
+			model.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl})
 
 			view = ansi.Strip(model.View().Content)
 
 			expectedLayout = "" +
 				"╭────────╮╭─────────────────╮╭─────────────────╮╭──────────╮╭──────────╮                            \n" +
-				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │  ≪ F1 » help               \n" +
+				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │                            \n" +
 				"┴────────┴┴─────────────────┴┘                 └┴──────────┴┴──────────┴────────────────────────────\n"
 			assert.Contains(t, view, expectedLayout)
 
-			model.Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
+			model.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl})
 
 			view = ansi.Strip(model.View().Content)
 
 			expectedLayout = "" +
 				"╭────────╮╭─────────────────╮╭─────────────────╮╭──────────╮╭──────────╮                            \n" +
-				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │  ≪ F1 » help               \n" +
+				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │                            \n" +
 				"┴────────┴┴─────────────────┴┴─────────────────┴┘          └┴──────────┴────────────────────────────\n"
 			assert.Contains(t, view, expectedLayout)
 
@@ -141,13 +141,13 @@ func TestKfee(t *testing.T) {
 
 			model.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModCtrl})
 
-			model.Update(tea.KeyPressMsg{Code: 'h', Mod: tea.ModCtrl})
+			model.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModCtrl})
 
 			view = ansi.Strip(model.View().Content)
 
 			expectedLayout = "" +
 				"╭────────╮╭─────────────────╮╭─────────────────╮╭──────────╮╭──────────╮                            \n" +
-				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │  ≪ F1 » help               \n" +
+				"│ Topics ││ Consumer Groups ││ Schema Registry ││ Clusters ││ Settings │                            \n" +
 				"┘        └┴─────────────────┴┴─────────────────┴┴──────────┴┴──────────┴────────────────────────────\n"
 
 			assert.Contains(t, view, expectedLayout)

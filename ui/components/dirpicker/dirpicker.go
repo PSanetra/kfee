@@ -13,6 +13,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"kfee/keymap"
 	"kfee/styles"
 )
 
@@ -22,6 +23,25 @@ const (
 	// so browsing large trees, like the home directory, stays fast.
 	countBudget = 2000
 )
+
+var (
+	actionSelect   = keymap.Define("dirpicker.select", "dirpicker", "ctrl+s")
+	actionUp       = keymap.Define("dirpicker.up", "dirpicker", "up", "ctrl+p")
+	actionDown     = keymap.Define("dirpicker.down", "dirpicker", "down", "ctrl+n")
+	actionPageUp   = keymap.Define("dirpicker.page_up", "dirpicker", "pgup")
+	actionPageDown = keymap.Define("dirpicker.page_down", "dirpicker", "pgdown")
+	actionOpen     = keymap.Define("dirpicker.open", "dirpicker", "right", "enter", "tab")
+	actionParent   = keymap.Define("dirpicker.parent", "dirpicker", "left")
+)
+
+// SelectHint is the key that uses the current folder, e.g. "C-s".
+func SelectHint() string { return keymap.Hint(actionSelect) }
+
+// OpenHint is the keys that open the selected folder, e.g. "→/enter/tab".
+func OpenHint() string { return keymap.Hint(actionOpen) }
+
+// ParentHint is the key that goes to the parent folder, e.g. "←".
+func ParentHint() string { return keymap.Hint(actionParent) }
 
 type kind int
 
@@ -86,24 +106,25 @@ func (m *Model) ClearFilter() {
 
 // Update handles a key press and reports whether the user chose the current directory.
 func (m *Model) Update(msg tea.KeyPressMsg) (chosen bool) {
-	switch msg.String() {
-	case "ctrl+s":
+	switch {
+	case keymap.Matches(msg, actionSelect):
 		return true
-	case "up", "ctrl+p":
+	case keymap.Matches(msg, actionUp):
 		m.move(-1)
-	case "down", "ctrl+n":
+	case keymap.Matches(msg, actionDown):
 		m.move(1)
-	case "pgup":
+	case keymap.Matches(msg, actionPageUp):
 		m.move(-m.height)
-	case "pgdown":
+	case keymap.Matches(msg, actionPageDown):
 		m.move(m.height)
-	case "right", "enter", "tab":
+	case keymap.Matches(msg, actionOpen):
 		if m.cursor < len(m.visible) {
 			m.chdir(m.visible[m.cursor].path)
 		}
-	case "left":
+	case keymap.Matches(msg, actionParent):
 		m.chdir(filepath.Dir(m.dir))
-	case "backspace":
+	case msg.String() == "backspace":
+		// editing the filter text, the picker goes up a directory when there is none
 		if m.filter != "" {
 			runes := []rune(m.filter)
 			m.filter = string(runes[:len(runes)-1])

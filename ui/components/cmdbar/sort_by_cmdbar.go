@@ -5,11 +5,17 @@ import (
 	"charm.land/lipgloss/v2"
 	"fmt"
 	"image/color"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
 	"kfee/ui/components/statusbar"
 	"strings"
+)
+
+var (
+	actionSortPrevious = keymap.Define("cmdbar.sort_previous", "cmdbar", "left")
+	actionSortNext     = keymap.Define("cmdbar.sort_next", "cmdbar", "right")
 )
 
 const (
@@ -100,17 +106,17 @@ func (m *SortByCmdBar) View(ktx *kontext.ProgramKtx, renderer *ui.Renderer) stri
 func (m *SortByCmdBar) Update(msg tea.Msg) (bool, tea.Msg, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "f3":
+		switch {
+		case keymap.Matches(msg, actionSort):
 			m.Active = !m.Active
-		case "h", "left":
+		case keymap.Matches(msg, actionSortPrevious):
 			m.prevElem()
-		case "l", "right":
+		case keymap.Matches(msg, actionSortNext):
 			m.nextElem()
-		case "esc":
+		case keymap.Matches(msg, actionCancel):
 			m.Active = false
 			return m.Active, nil, nil
-		case "enter":
+		case keymap.Matches(msg, actionConfirm):
 			if m.activeIdx == m.selectedIdx {
 				m.sorts[m.selectedIdx].Direction = !m.sorts[m.selectedIdx].Direction
 			} else {
@@ -127,9 +133,9 @@ func (m *SortByCmdBar) Update(msg tea.Msg) (bool, tea.Msg, tea.Cmd) {
 func (m *SortByCmdBar) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
 		{"Move", "←/→"},
-		{"Select sorting", "enter"},
-		{"Toggle direction", "enter"},
-		{"Cancel", "esc/F3"},
+		{"Select sorting", keymap.Hint(actionConfirm)},
+		{"Toggle direction", keymap.Hint(actionConfirm)},
+		{"Cancel", fmt.Sprintf("%s/%s", keymap.Hint(actionCancel), keymap.Hint(actionSort))},
 	}
 }
 

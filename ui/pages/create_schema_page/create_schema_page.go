@@ -5,6 +5,7 @@ import (
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"fmt"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/sradmin"
 	"kfee/styles"
@@ -14,6 +15,8 @@ import (
 	"kfee/ui/components/statusbar"
 	"kfee/ui/tabs"
 )
+
+var actionBack = keymap.Define("create_schema.back", "create_schema", "esc")
 
 type state int
 
@@ -78,8 +81,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		{
-			switch msg.String() {
-			case "esc":
+			switch {
+			case keymap.Matches(msg, actionBack):
 				if m.state == creating {
 					return nil
 				}
@@ -112,7 +115,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		{"Next Field", "tab"},
 		{"Prev. Field", "s-tab"},
 		{"Reset Form", "C-r"},
-		{"Go Back", "esc"},
+		{"Go Back", keymap.Hint(actionBack)},
 	}
 }
 

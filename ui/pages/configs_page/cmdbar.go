@@ -7,11 +7,19 @@ import (
 	"charm.land/lipgloss/v2"
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
 	"kfee/ui/components/notifier"
 	"kfee/ui/tabs"
+)
+
+var (
+	actionSearch  = keymap.Define("topic_configs.search", "topic_configs", "/")
+	actionEdit    = keymap.Define("topic_configs.edit", "topic_configs", "e")
+	actionBack    = keymap.Define("topic_configs.back", "topic_configs", "esc")
+	actionConfirm = keymap.Define("topic_configs.confirm", "topic_configs", "enter")
 )
 
 type state int
@@ -67,11 +75,11 @@ func (m *CmdBarModel) Update(msg tea.Msg, stc SelectedTopicConfig) (tea.Msg, tea
 	case spinner.TickMsg:
 		return nil, m.notifier.Update(msg)
 	case tea.KeyPressMsg:
-		if msg.String() == "/" {
+		if keymap.Matches(msg, actionSearch) {
 			m.state = SEARCHING
 			m.searchInput.Focus()
 			return nil, nil
-		} else if msg.String() == "esc" {
+		} else if keymap.Matches(msg, actionBack) {
 			if m.state == SEARCHING {
 				m.searchInput = newSearchInput()
 			}
@@ -81,12 +89,12 @@ func (m *CmdBarModel) Update(msg tea.Msg, stc SelectedTopicConfig) (tea.Msg, tea
 				return nil, m.navigator.ToTopicsPage(false)
 			}
 			return nil, nil
-		} else if msg.String() == "e" && isEditable(m) {
+		} else if keymap.Matches(msg, actionEdit) && isEditable(m) {
 			m.state = EDITING
 			m.editInput = newEditInput(stc.ConfigValue)
 			m.editInput.Focus()
 			return nil, nil
-		} else if msg.String() == "enter" {
+		} else if keymap.Matches(msg, actionConfirm) {
 			if m.state == SEARCHING {
 				if m.GetSearchTerm() == "" {
 					m.state = HIDDEN

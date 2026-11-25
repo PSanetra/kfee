@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"kfee/config"
+	"kfee/keymap"
 	"kfee/llm"
 	"kfee/serdes"
 	"kfee/transformation"
@@ -14,6 +15,19 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+)
+
+// Actions of the transformation editor. The pickers opened from it take their own keys.
+var (
+	transformSave           = keymap.Define("transform.save", "transform", "ctrl+s")
+	transformGenerate       = keymap.Define("transform.generate", "transform", "ctrl+g")
+	transformExternalEditor = keymap.Define("transform.external_editor", "transform", "ctrl+e")
+	transformAttachFile     = keymap.Define("transform.attach_file", "transform", "ctrl+o")
+	transformDetachFile     = keymap.Define("transform.detach_file", "transform", "ctrl+r")
+	transformClose          = keymap.Define("transform.close", "transform", "esc")
+	transformChoose         = keymap.Define("transform.choose", "transform.picker", "enter")
+	transformPickerClose    = keymap.Define("transform.picker_close", "transform.picker", "esc")
+	transformFilesClose     = keymap.Define("transform.files_close", "transform.files", "esc")
 )
 
 // transformationStore is the store of the applied transformations, limited to the configured history.
@@ -113,21 +127,21 @@ func (m *Model) updateTransformEditor(msg tea.KeyPressMsg) tea.Cmd {
 	if m.transformEditor.files != nil {
 		return m.updateFilePicker(msg)
 	}
-	switch msg.String() {
-	case "esc":
+	switch {
+	case keymap.Matches(msg, transformClose):
 		m.transformEditor = nil
 		return nil
-	case "ctrl+s":
+	case keymap.Matches(msg, transformSave):
 		return m.saveTransformation()
-	case "ctrl+o":
+	case keymap.Matches(msg, transformAttachFile):
 		m.transformEditor.openFilePicker()
 		return nil
-	case "ctrl+r":
+	case keymap.Matches(msg, transformDetachFile):
 		m.transformEditor.detachLast()
 		return nil
-	case "ctrl+g":
+	case keymap.Matches(msg, transformGenerate):
 		return m.generateTransformation()
-	case "ctrl+e":
+	case keymap.Matches(msg, transformExternalEditor):
 		return m.openExternalEditor()
 	}
 	return m.transformEditor.update(msg)
@@ -217,11 +231,11 @@ func (m *Model) updateToolPicker(msg tea.KeyPressMsg) tea.Cmd {
 	e := m.transformEditor
 	p := e.picker
 	if p.custom {
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, transformPickerClose):
 			p.custom = false
 			return nil
-		case "enter":
+		case keymap.Matches(msg, transformChoose):
 			command := strings.Fields(p.input.Value())
 			if len(command) == 0 {
 				return nil
@@ -233,18 +247,18 @@ func (m *Model) updateToolPicker(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 
-	switch msg.String() {
-	case "esc":
+	switch {
+	case keymap.Matches(msg, transformPickerClose):
 		e.picker = nil
-	case "up":
+	case keymap.Matches(msg, keymap.TableUp):
 		if p.cursor > 0 {
 			p.cursor--
 		}
-	case "down":
+	case keymap.Matches(msg, keymap.TableDown):
 		if p.cursor < len(config.LLMPresets) {
 			p.cursor++
 		}
-	case "enter":
+	case keymap.Matches(msg, transformChoose):
 		if p.cursor == len(config.LLMPresets) {
 			p.custom = true
 			return nil
@@ -258,8 +272,7 @@ func (m *Model) updateToolPicker(msg tea.KeyPressMsg) tea.Cmd {
 // updateFilePicker handles the keys of the picker choosing an attachment.
 func (m *Model) updateFilePicker(msg tea.KeyPressMsg) tea.Cmd {
 	e := m.transformEditor
-	if msg.String() == "esc" {
-		e.files = nil
+	if keymap.Matches(msg, transformFilesClose) {
 		return nil
 	}
 	if chosen := e.files.Update(msg); chosen != "" {

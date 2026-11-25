@@ -1,12 +1,25 @@
 package cmdbar
 
 import (
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/ui"
 	"kfee/ui/components/statusbar"
 
 	tea "charm.land/bubbletea/v2"
 )
+
+var (
+	actionSearch = keymap.Define("cmdbar.search", "cmdbar", "/")
+	actionDelete = keymap.Define("cmdbar.delete", "cmdbar", "f2")
+	actionSort   = keymap.Define("cmdbar.sort", "cmdbar", "f3")
+)
+
+// SearchHint is the key that opens the search, e.g. "/".
+func SearchHint() string { return keymap.Hint(actionSearch) }
+
+// DeleteHint is the key that opens the delete bar, e.g. "F2".
+func DeleteHint() string { return keymap.Hint(actionDelete) }
 
 type TableCmdsBar[T any] struct {
 	notifierCBar     CmdBar
@@ -53,15 +66,15 @@ func (m *TableCmdsBar[T]) Update(msg tea.Msg, selection *T) (tea.Msg, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "/":
+		switch {
+		case keymap.Matches(msg, actionSearch):
 			return m.handleSlash(msg)
-		case "f2":
+		case keymap.Matches(msg, actionDelete):
 			if selection != nil {
 				return m.handleF2(selection, msg)
 			}
 			return nil, nil
-		case "f3":
+		case keymap.Matches(msg, actionSort):
 			if m.sortByCBar != nil {
 				return m.handleF3(msg, pmsg, cmd)
 			}

@@ -3,6 +3,7 @@ package subjects_page
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/sradmin"
 	"kfee/styles"
@@ -10,6 +11,8 @@ import (
 	"kfee/ui/components/cmdbar"
 	"kfee/ui/components/statusbar"
 )
+
+var actionHardDelete = keymap.Define("subjects.hard_delete", "subjects", "f4")
 
 type TableCmdsBar struct {
 	mainCBar       *cmdbar.TableCmdsBar[sradmin.Subject]
@@ -36,7 +39,7 @@ func (m *TableCmdsBar) Update(msg tea.Msg, selection *sradmin.Subject) (tea.Msg,
 	// Check for the F4 key press to activate the hardDeleteCBar.
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if msg.String() == "f4" && selection != nil {
+		if keymap.Matches(msg, actionHardDelete) && selection != nil {
 			// Toggle the hardDeleteCBar.
 			active, pmsg, cmd := m.hardDeleteCBar.Update(msg)
 			if active {
@@ -116,7 +119,7 @@ func NewTableCmdsBar(
 	hardDeleteCBar := cmdbar.NewDeleteCmdBar[sradmin.Subject](
 		deleteMsgFn,
 		deleteFn,
-		cmdbar.WithDeleteKey[sradmin.Subject]("f4"),
+		cmdbar.WithDeleteAction[sradmin.Subject](actionHardDelete),
 	)
 	return &TableCmdsBar{
 		cmdbar.NewTableCmdsBar[sradmin.Subject](
