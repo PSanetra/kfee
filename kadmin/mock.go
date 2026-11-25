@@ -37,6 +37,10 @@ func (m MockKadmin) PublishRecord(p *ProducerRecord) PublicationStartedMsg {
 	return PublicationStartedMsg{}
 }
 
+func (m MockKadmin) PublishBatch(records []*ProducerRecord) error {
+	return nil
+}
+
 func (m MockKadmin) ReadRecords(ctx context.Context, rd ReadDetails) tea.Msg {
 	return ReadingStartedMsg{}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"kfee/config"
 	"kfee/kadmin"
@@ -331,6 +332,16 @@ func main() {
 
 	wg.Wait()
 
+	// reset the group, so that this run reads from the beginning instead of resuming where the last run stopped
+	started := ka.DeleteCGroup("generator").(kadmin.CGroupDeletionStartedMsg)
+	switch msg := started.AwaitCompletion().(type) {
+	case kadmin.CGroupDeletedMsg:
+	case kadmin.CGroupDeletionErrMsg:
+		if !errors.Is(msg.Err, sarama.ErrGroupIDNotFound) {
+			panic(fmt.Sprintf("Failed to reset consumer group generator: %v", msg.Err))
+		}
+	}
+
 	cfg := sarama.NewConfig()
 	cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
 	brokers := []string{"localhost:9092"}
@@ -370,10 +381,15 @@ func generateData(ka kadmin.Kadmin, gd generationData, sa sradmin.Client, count 
 
 	schemaInfo := getLatestSchema(sa, gd.subject)
 
+	records := make([]*kadmin.ProducerRecord, 0, count)
 	for i := 0; i < count; i++ {
 		id := uuid.New().String()
 		id, event := gd.eventGenFunc(id)
-		publish(ka, gd.topic.name, id, event, schemaInfo)
+		records = append(records, encode(gd.topic.name, id, event, schemaInfo))
+	}
+	// the records are sent without waiting for each acknowledgement, the batch returns once all are acknowledged
+	if err := ka.PublishBatch(records); err != nil {
+		panic(fmt.Sprintf("Failed to publish events to topic %s: %v", gd.topic.name, err))
 	}
 	fmt.Printf("Published 1000 events to topic %s with subject %s\n", gd.topic.name, gd.subject)
 }
@@ -405,7 +421,7 @@ func (h *handler) ConsumeClaim(s sarama.ConsumerGroupSession, claim sarama.Consu
 	return nil
 }
 
-func publish(ka kadmin.Kadmin, topic string, id string, event interface{}, schemaInfo sradmin.Schema) {
+func encode(topic string, id string, event interface{}, schemaInfo sradmin.Schema) *kadmin.ProducerRecord {
 	//personJson, _ := json.Marshal(event)
 	codec, _ := goavro.NewCodec(schemaInfo.Value)
 	valueBytes, err := codec.BinaryFromNative(nil, event)
@@ -425,7 +441,7 @@ func publish(ka kadmin.Kadmin, topic string, id string, event interface{}, schem
 	record = append(record, schemaIDBytes...)
 	record = append(record, valueBytes...)
 
-	msg := ka.PublishRecord(&kadmin.ProducerRecord{
+	return &kadmin.ProducerRecord{
 		Key:       id,
 		Value:     record,
 		Topic:     topic,
@@ -438,11 +454,6 @@ func publish(ka kadmin.Kadmin, topic string, id string, event interface{}, schem
 			"eventVersion": "1.0",
 			"eventTime":    time.Now().String(),
 		},
-	})
-	switch msg := msg.AwaitCompletion().(type) {
-	case kadmin.PublicationSucceeded:
-	case kadmin.PublicationFailed:
-		panic(fmt.Sprintf("Failed to publish message %v", msg.Err))
 	}
 }
 
