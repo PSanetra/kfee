@@ -22,7 +22,7 @@ buildGoModule {
   };
 
   # update after changing go.mod: set to lib.fakeHash, run nix build and use the reported hash
-  vendorHash = "sha256-SzBQkX4jj3u4Mg1PphY+Yn1NV8Q3rsLqkpsay2dnDMw=";
+  vendorHash = "sha256-csP+sODOajLYP1FDCOY+g4xT5rMp0Qx6eFrcnNs5Z0M=";
 
   subPackages = [ "cmd/kfee" ];
   tags = [ "prd" ];
