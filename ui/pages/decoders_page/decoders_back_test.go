@@ -89,3 +89,41 @@ func TestShowOnlyDecoder(t *testing.T) {
 		}
 	})
 }
+
+func TestDetailTransformationsAreInline(t *testing.T) {
+	schema := `{"type":"record","name":"Order","fields":[{"name":"id","type":"string"}]}`
+	m := New("orders", &config.Config{}, nil, nil, tabs.NewMockTopicsTabNavigator(), map[string]string{"avro:orders-value": schema}, clipper.NewMock())
+	require.True(t, m.ShowOnly("avro:orders-value"))
+	m.history["avro:orders-value"] = []transformation.Entry{
+		{Source: transformation.SourceLLM, Filter: "{latest: .id}"},
+		{Source: transformation.SourceManual, Filter: "{first: .id,\n  second: .x}"},
+	}
+	m.entry = 0
+
+	text := m.detailText()
+
+	assert.NotContains(t, text, "llm")
+	assert.NotContains(t, text, "manual")
+	assert.Contains(t, text, "{latest: .id}")
+	assert.Contains(t, text, "{first: .id, second: .x}", "a multiline filter is shown on one line")
+	assert.Empty(t, fitLinesBeyond(fitLines(text, 20), 20), "lines are cut to the width")
+}
+
+func TestOpenInEditorNeedsATransformation(t *testing.T) {
+	schema := `{"type":"record","name":"Order","fields":[{"name":"id","type":"string"}]}`
+	m := New("orders", &config.Config{}, nil, nil, tabs.NewMockTopicsTabNavigator(), map[string]string{"avro:orders-value": schema}, clipper.NewMock())
+	require.True(t, m.ShowOnly("avro:orders-value"))
+
+	assert.Nil(t, m.Update(tests.Key('e')), "nothing to open without a transformation")
+}
+
+// fitLinesBeyond lists the lines that are wider than the width.
+func fitLinesBeyond(text string, width int) []string {
+	var wide []string
+	for _, line := range strings.Split(text, "\n") {
+		if ansi.StringWidth(line) > width {
+			wide = append(wide, line)
+		}
+	}
+	return wide
+}

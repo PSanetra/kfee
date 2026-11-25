@@ -16,6 +16,7 @@ import (
 	"kfee/ui/components/notifier"
 	"kfee/ui/components/statusbar"
 	ktable "kfee/ui/components/table"
+	"kfee/ui/editor"
 	"kfee/ui/tabs"
 	"maps"
 	"slices"
@@ -36,6 +37,11 @@ type CopyErrorMsg struct {
 	Err error
 }
 
+// EditorErrorMsg reports that the transformation could not be shown in $EDITOR.
+type EditorErrorMsg struct {
+	Err error
+}
+
 // Actions of the decoders list, and of the schema and transformations shown for a decoder.
 var (
 	decodersShow        = keymap.Define("decoders.show_transformations", "decoders", "enter")
@@ -43,6 +49,7 @@ var (
 	decodersBack        = keymap.Define("decoders.back", "decoders", "esc")
 	decodersToggleFocus = keymap.Define("decoders.toggle_focus", "decoders", "left", "right")
 	decodersActivate    = keymap.Define("decoders.activate", "decoders", "a", "enter")
+	decodersOpenFilter  = keymap.Define("decoders.open_transformation", "decoders", "e")
 	decodersCloseDetail = keymap.Define("decoders.close_detail", "decoders", "esc")
 )
 
@@ -106,6 +113,10 @@ func New(
 	})
 	cmdbar.BindNotificationHandler(notifierCmdBar, func(msg CopyErrorMsg, m *notifier.Model) (bool, tea.Cmd) {
 		m.ShowErrorMsg("Copy failed", msg.Err)
+		return true, m.AutoHideCmd("decoders-page")
+	})
+	cmdbar.BindNotificationHandler(notifierCmdBar, func(msg EditorErrorMsg, m *notifier.Model) (bool, tea.Cmd) {
+		m.ShowErrorMsg("Editor failed", msg.Err)
 		return true, m.AutoHideCmd("decoders-page")
 	})
 	m := &Model{
@@ -213,7 +224,7 @@ func (m *Model) detailView(ktx *kontext.ProgramKtx) string {
 	left := lg.NewStyle().Width(leftWidth).Render(schemaBorder.View(m.schemaVp.View()))
 	// the box always spans the full height, with or without transformations
 	right := lg.NewStyle().Width(rightWidth).Render(
-		transformationsBorder.View(lg.NewStyle().Width(rightWidth - 2).Height(height - 2).MaxHeight(height - 2).Render(m.detailText())),
+		transformationsBorder.View(lg.NewStyle().Width(rightWidth - 2).Height(height - 2).MaxHeight(height - 2).Render(fitLines(m.detailText(), rightWidth-2))),
 	)
 	return lg.JoinHorizontal(lg.Top, left, right)
 }
@@ -256,6 +267,25 @@ func (m *Model) openDetail() {
 	m.schemaVp = &vp
 }
 
+// openFilter shows the transformation under the cursor in $EDITOR, pretty printed. Changes made in the
+// editor are not saved: the transformations are only changed by activating one.
+func (m *Model) openFilter() tea.Cmd {
+	history := m.history[m.selected().id]
+	if m.focusSchema || len(history) == 0 {
+		return nil
+	}
+	cmd, err := editor.Edit(transformation.Format(history[m.entry].Filter), func(_ string, err error) tea.Msg {
+		if err != nil {
+			return EditorErrorMsg{Err: err}
+		}
+		return nil
+	})
+	if err != nil {
+		return func() tea.Msg { return EditorErrorMsg{Err: err} }
+	}
+	return cmd
+}
+
 // updateDetail toggles the focus, scrolls the schema or moves through the transformations, and
 // activates the transformation under the cursor. esc goes back to the decoders.
 func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
@@ -266,6 +296,8 @@ func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
 		}
 		m.detail = false
 		return nil
+	case keymap.Matches(key, decodersOpenFilter):
+		return m.openFilter()
 	case keymap.Matches(key, decodersToggleFocus):
 		m.focusSchema = !m.focusSchema
 		return nil
@@ -318,6 +350,9 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 				statusbar.Shortcut{Name: "Move", Keybinding: keymap.Hint(keymap.TableUp) + "/" + keymap.Hint(keymap.TableDown)},
 				statusbar.Shortcut{Name: "Activate", Keybinding: keymap.Hint(decodersActivate)},
 			)
+		}
+		if !m.focusSchema && len(m.history[m.selected().id]) > 0 {
+			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Open in Editor", Keybinding: keymap.Hint(decodersOpenFilter)})
 		}
 		return append(shortcuts,
 			statusbar.Shortcut{Name: "Copy Schema", Keybinding: keymap.Hint(decodersCopy)},
@@ -405,11 +440,18 @@ func (m *Model) detailText() string {
 		if j == len(history)-1 {
 			marker = "▶"
 		}
-		lines = append(lines, fmt.Sprintf("%s%s %s  %s", cursor, marker, history[j].Applied.Local().Format("2006-01-02 15:04"), history[j].Source))
-		for _, filterLine := range strings.Split(history[j].Filter, "\n") {
-			lines = append(lines, "       "+filterLine)
-		}
-		lines = append(lines, "")
+		// one line per transformation, the filter inline; fitLines cuts what does not fit
+		filter := strings.Join(strings.Fields(history[j].Filter), " ")
+		lines = append(lines, fmt.Sprintf("%s%s %s  %s", cursor, marker, history[j].Applied.Local().Format("2006-01-02 15:04"), filter))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// fitLines cuts every line of the text to the width, a cut line ends with an ellipsis.
+func fitLines(text string, width int) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = ansi.Truncate(line, width, "…")
 	}
 	return strings.Join(lines, "\n")
 }

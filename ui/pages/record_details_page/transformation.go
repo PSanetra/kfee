@@ -9,8 +9,7 @@ import (
 	"kfee/serdes"
 	"kfee/transformation"
 	"kfee/ui"
-	"os"
-	"os/exec"
+	"kfee/ui/editor"
 	"strings"
 	"time"
 
@@ -155,24 +154,14 @@ func (m *Model) openExternalEditor() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	path, err := writeTempFile(text)
+	cmd, err := editor.Edit(text, func(text string, err error) tea.Msg {
+		return externalEditedMsg{target: target, text: text, err: err}
+	})
 	if err != nil {
 		m.notifierCmdbar.Notifier.ShowError(err)
 		return nil
 	}
-	name, args := externalEditor()
-	cmd := exec.Command(name, append(args, path)...)
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		defer os.Remove(path)
-		if err != nil {
-			return externalEditedMsg{target: target, err: err}
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return externalEditedMsg{target: target, err: err}
-		}
-		return externalEditedMsg{target: target, text: strings.TrimSuffix(string(content), "\n")}
-	})
+	return cmd
 }
 
 // handleExternalEdited puts the text returned by the editor into its field. The other field keeps
@@ -197,33 +186,6 @@ func (m *Model) handleExternalEdited(msg externalEditedMsg) tea.Cmd {
 		e.buildForm()
 		return nil
 	}
-}
-
-// externalEditor is the command of $EDITOR, nano when it is not set, as the text fields of huh.
-func externalEditor() (string, []string) {
-	fields := strings.Fields(os.Getenv("EDITOR"))
-	if len(fields) > 0 {
-		return fields[0], fields[1:]
-	}
-	return "nano", nil
-}
-
-// writeTempFile writes the text to a new temporary file and returns its path.
-func writeTempFile(text string) (string, error) {
-	file, err := os.CreateTemp("", "kfee-transform-*.txt")
-	if err != nil {
-		return "", err
-	}
-	if _, err := file.WriteString(text); err != nil {
-		file.Close()
-		os.Remove(file.Name())
-		return "", err
-	}
-	if err := file.Close(); err != nil {
-		os.Remove(file.Name())
-		return "", err
-	}
-	return file.Name(), nil
 }
 
 // updateToolPicker handles the keys of the picker choosing the LLM tool.
