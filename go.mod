@@ -3,7 +3,7 @@ module kfee
 go 1.26.0
 
 require (
-	github.com/IBM/sarama v1.61.1
+	github.com/IBM/sarama v1.62.0
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/burdiyan/kafkautil v0.0.0-20240215092415-7e6d3d0fc870
@@ -12,7 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.20
 	github.com/linkedin/goavro/v2 v2.15.0
-	github.com/moby/moby/api v1.56.1
+	github.com/moby/moby/api v1.57.0
 	github.com/muesli/reflow v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/riferrei/srclient v0.7.4
@@ -23,7 +23,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/redpanda v0.45.0
 	github.com/xdg-go/scram v1.4.0
-	golang.org/x/exp v0.0.0-20261117202309-7a49493bfd90
+	golang.org/x/exp v0.0.0-20261124000051-d6646c509b6d
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -53,8 +53,8 @@ require (
 )
 
 require (
-	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.1.2
+	charm.land/bubbles/v2 v2.2.2
+	charm.land/bubbletea/v2 v2.1.3
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.1.1
 	charm.land/log/v2 v2.0.1
@@ -123,7 +123,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/klauspost/compress v1.20.4 // indirect
 	github.com/lovoo/goka v1.1.14 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
@@ -148,11 +148,11 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/pierrec/lz4/v4 v4.1.31 // indirect
+	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/rivo/uniseg v0.4.8-0.20261110175422-3a370411ca06 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.11.0 // indirect
@@ -192,13 +192,13 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/mock v0.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/mod v0.43.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/term v0.47.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/term v0.48.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
