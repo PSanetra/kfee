@@ -2,9 +2,9 @@
 Source docs/screenshots/setup.tape
 
 # Topics -> Consumer Groups -> Schema Registry
-Ctrl+L
+Ctrl+Right
 Sleep 500ms
-Ctrl+L
+Ctrl+Right
 Wait+Screen@20s /PaymentProcessed/
 Type "/"
 Type "PaymentProcessed"

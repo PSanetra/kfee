@@ -1,7 +1,7 @@
 # The offsets and lag of a consumer group.
 Source docs/screenshots/setup.tape
 
-Ctrl+L
+Ctrl+Right
 Wait+Screen@20s /generator/
 Type "/"
 Type "generator"
