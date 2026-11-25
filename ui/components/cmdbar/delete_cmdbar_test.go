@@ -4,10 +4,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
+	"kfee/keymap"
 	"kfee/tests"
 	"kfee/ui/components/statusbar"
 	"testing"
 )
+
+// testDeleteF4 stands in for a page action that toggles the delete bar on F4.
+var testDeleteF4 = keymap.Define("test.delete_f4", "test-delete", "f4")
 
 type TestMsg struct{}
 
@@ -113,7 +117,7 @@ func TestDeleteCmdBar(t *testing.T) {
 			WithValidateFn(func(string) (bool, tea.Cmd) {
 				return true, nil
 			}),
-			WithDeleteKey[string]("f4"))
+			WithDeleteAction[string](testDeleteF4))
 
 		t.Run("uses overridden key as toggle", func(t *testing.T) {
 

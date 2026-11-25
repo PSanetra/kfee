@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"kfee/config"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/serdes"
 	"kfee/styles"
 	"kfee/ui/components/dirpicker"
@@ -17,6 +18,12 @@ import (
 )
 
 const maxProtoModalWidth = 80
+
+// Actions of the protobuf decoder modal.
+var (
+	protoNext  = keymap.Define("proto.next", "proto", "enter")
+	protoClose = keymap.Define("proto.close", "proto", "esc")
+)
 
 type protoStage int
 
@@ -326,13 +333,13 @@ func (m *protoDecoderModal) Update(msg tea.Msg) tea.Cmd {
 			return m.updateDirs(msg)
 		}
 		m.err = ""
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, protoClose):
 			// esc ends filtering of a select instead of closing
 			if !m.isFiltering() {
 				return func() tea.Msg { return protoDecoderClosedMsg{} }
 			}
-		case "enter":
+		case keymap.Matches(msg, protoNext):
 			if m.form == nil {
 				return nil
 			}
@@ -349,8 +356,7 @@ func (m *protoDecoderModal) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *protoDecoderModal) updateDirs(msg tea.KeyPressMsg) tea.Cmd {
-	if msg.String() == "esc" {
-		// esc clears the filter before closing
+	if keymap.Matches(msg, protoClose) {
 		if m.dirs.Filtering() {
 			m.dirs.ClearFilter()
 			return nil
@@ -526,15 +532,16 @@ func (m *protoDecoderModal) footer() string {
 
 func (m *protoDecoderModal) Shortcuts() []statusbar.Shortcut {
 	if m.stage == stageDir {
+		// the dirpicker handles these keys itself
 		return []statusbar.Shortcut{
-			{Name: "Use This Folder", Keybinding: "C-s"},
-			{Name: "Open", Keybinding: "→/enter"},
-			{Name: "Up", Keybinding: "←"},
-			{Name: "Close", Keybinding: "esc"},
+			{Name: "Use This Folder", Keybinding: dirpicker.SelectHint()},
+			{Name: "Open", Keybinding: dirpicker.OpenHint()},
+			{Name: "Up", Keybinding: dirpicker.ParentHint()},
+			{Name: "Close", Keybinding: keymap.Hint(protoClose)},
 		}
 	}
 	return []statusbar.Shortcut{
-		{Name: "Next", Keybinding: "enter"},
-		{Name: "Close", Keybinding: "esc"},
+		{Name: "Next", Keybinding: keymap.Hint(protoNext)},
+		{Name: "Close", Keybinding: keymap.Hint(protoClose)},
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"kfee/config"
 	"kfee/kcadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -23,6 +24,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	actionBack    = keymap.Define("kcon.back", "kcon", "esc")
+	actionRefresh = keymap.Define("kcon.refresh", "kcon", "f5")
 )
 
 type Model struct {
@@ -90,12 +96,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, actionBack):
 			if !m.cmdBar.IsFocussed() {
 				return m.navigator.ToKConsPage()
 			}
-		case "P":
+		case msg.String() == "P":
 			if m.stateChangingConnectorName == "" {
 				var name = m.selectedConnector()
 				log.Debug("Pausing", "connector name", name)
@@ -108,7 +114,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					return ConnectorStateAlreadyChanging{}
 				}
 			}
-		case "R":
+		case msg.String() == "R":
 			if m.stateChangingConnectorName == "" {
 				var name = m.selectedConnector()
 				m.connectorChangeState = "RESUMING"
@@ -121,7 +127,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					return ConnectorStateAlreadyChanging{}
 				}
 			}
-		case "f5":
+		case keymap.Matches(msg, actionRefresh):
 			if m.state == loading {
 				log.Debug("Not refreshing connectors due to loading state")
 				return nil
@@ -271,7 +277,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		{"Search", "/"},
 		{"Delete", "F2"},
 		{"Sort", "F3"},
-		{"Refresh", "F5"},
+		{"Refresh", keymap.Hint(actionRefresh)},
 		{"Pause", "S-p"},
 		{"Resume", "S-r"},
 	}

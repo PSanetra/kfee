@@ -4,6 +4,7 @@ import (
 	"charm.land/log/v2"
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -22,6 +23,11 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+)
+
+var (
+	actionView    = keymap.Define("cgroups.view", "cgroups", "enter")
+	actionRefresh = keymap.Define("cgroups.refresh", "cgroups", "f5")
 )
 
 type state int
@@ -79,14 +85,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "enter":
+		switch {
+		case keymap.Matches(msg, actionView):
 			// only accept enter when the table is focussed
 			if !m.tcb.IsFocussed() {
 				// TODO ignore enter when there are no groups loaded
 				return m.navigator.ToCGroupTopicsPage(*m.SelectedCGroup())
 			}
-		case "f5":
+		case keymap.Matches(msg, actionRefresh):
 			m.groups = nil
 			m.state = stateRefreshing
 			return m.lister.ListCGroups
@@ -200,10 +206,10 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 	}
 	return []statusbar.Shortcut{
 		{"Search", "/"},
-		{"View", "enter"},
+		{"View", keymap.Hint(actionView)},
 		{"Delete", "F2"},
 		{"Sort", "F3"},
-		{"Refresh", "F5"},
+		{"Refresh", keymap.Hint(actionRefresh)},
 	}
 }
 

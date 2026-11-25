@@ -8,6 +8,7 @@ import (
 	"kfee/config"
 	"kfee/kadmin"
 	"kfee/kcadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/serdes"
 	"kfee/sradmin"
@@ -28,6 +29,7 @@ import (
 	"kfee/ui/tabs/topics_tab"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -137,9 +139,24 @@ func (m *Model) render() string {
 	tabsView := m.tabs.View(m.ktx, m.renderer)
 	views = append(views, tabsView)
 
+	// rendered before the body, so the body gets the height left over by the footer
+	var footer string
+	if m.statusbar != nil {
+		footer = m.renderer.Render(statusbar.Footer(m.statusbar.Shortcuts(), m.ktx.WindowWidth, keymap.Hint(tab.ActionHelp)))
+	}
+
 	if m.tabCtrl != nil {
 		view := m.tabCtrl.View(m.ktx, m.renderer)
+		// a page taller than the space left would push the footer out of the window, so it is cut instead
+		room := m.ktx.WindowHeight - lipgloss.Height(tabsView) - lipgloss.Height(footer)
+		if footer != "" && room >= 0 && lipgloss.Height(view) > room {
+			view = strings.Join(strings.Split(view, "\n")[:room], "\n")
+		}
 		views = append(views, view)
+	}
+
+	if footer != "" {
+		views = append(views, footer)
 	}
 
 	return ui.JoinVertical(lipgloss.Top, views...)
@@ -171,18 +188,18 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termFg = msg.Color
 		return m, nil
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c":
+		if msg.String() == "ctrl+c" {
 			m.quitting = true
 			return m, tea.Quit
-		case "f1":
+		}
+		if keymap.Matches(msg, tab.ActionHelp) {
 			m.showHelp = !m.showHelp && m.statusbar != nil
 			return m, nil
 		}
 
 		// the help modal captures all key presses while open
 		if m.showHelp {
-			if msg.String() == "esc" || msg.String() == "q" {
+			if keymap.Matches(msg, help.ActionClose) {
 				m.showHelp = false
 			}
 			return m, nil
@@ -243,6 +260,14 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.clustersTabCtrl.Update(msg)
 		}
 	case config.LoadedMsg:
+		overrides, err := keymap.Load(config.KeymapPath())
+		if err == nil {
+			err = keymap.Apply(overrides)
+		}
+		if err != nil {
+			m.startErr = err
+			return m, tea.Quit
+		}
 		scheme, err := styles.Load(msg.Config.Theme, config.ThemesDir(), m.isDark)
 		if err != nil {
 			m.startErr = err
@@ -441,6 +466,14 @@ func NewModel(
 const upstream = "a fork of ktea (https://github.com/jonas-grgt/ktea)"
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "keymap" {
+		if err := keymap.WriteDefaults(os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "kfee:", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "confluent" {
 		if err := ccloud.Run(config.New(config.NewDefaultIO())); err != nil {
 			fmt.Fprintln(os.Stderr, "kfee:", err)
@@ -456,7 +489,7 @@ func main() {
 	)
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "kfee is a Kafka terminal client, %s.\n\n"+
-			"Usage:\n  kfee [flags]\n  kfee confluent    add a Confluent Cloud cluster using the Confluent CLI\n\nFlags:\n", upstream)
+			"Usage:\n  kfee [flags]\n  kfee confluent    add a Confluent Cloud cluster using the Confluent CLI\n  kfee keymap       print the default keys for keymap.yaml\n\nFlags:\n", upstream)
 		flag.PrintDefaults()
 	}
 	flag.Var(&debugParam, "debug", "enable debug logging: --debug writes ./debug.log, --debug=PATH writes to PATH\n(a directory gets PATH/debug.log); --debug PATH with a space is not supported")

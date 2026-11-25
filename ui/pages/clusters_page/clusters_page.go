@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"kfee/config"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -21,6 +22,8 @@ import (
 	"sort"
 	"strings"
 )
+
+var actionSwitch = keymap.Define("clusters.switch", "clusters", "enter")
 
 type Model struct {
 	table         *table.Model
@@ -69,8 +72,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return ClusterSwitchedMsg{activeCluster}
 		})
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "enter":
+		switch {
+		case keymap.Matches(msg, actionSwitch):
 			if !m.cmdBar.IsFocussed() {
 				cmds = append(cmds, func() tea.Msg {
 					cluster := m.ktx.Config().FindClusterByName(*m.SelectedCluster())
@@ -98,7 +101,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
-		{"Switch Cluster", "enter"},
+		{"Switch Cluster", keymap.Hint(actionSwitch)},
 		{"Edit", "C-e"},
 		{"Delete", "F2"},
 		{"Create", "C-n"},

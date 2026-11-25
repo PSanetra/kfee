@@ -25,7 +25,7 @@ func TestHelp(t *testing.T) {
 		assert.Contains(t, render, "  /  Search")
 		assert.Contains(t, render, " F2  Delete")
 		assert.Contains(t, render, "C-r  Refresh")
-		assert.Contains(t, render, "esc / F1 close")
+		assert.Contains(t, render, "esc/q / F1 close")
 	})
 
 	t.Run("splits into columns to fit the height", func(t *testing.T) {

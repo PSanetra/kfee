@@ -3,10 +3,16 @@ package tab
 import (
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
 	"strings"
+)
+
+var (
+	// ActionHelp opens and closes the help. The footer shows its key when shortcuts are left out.
+	ActionHelp = keymap.Define("app.help", "global", "f1")
 )
 
 type Label string
@@ -22,13 +28,6 @@ type Model struct {
 	activeTab int
 }
 
-var helpTab = Tab{Title: "≪ F1 » help", Label: "help"}
-
-// helpTitle colors the F1 key at render time so it follows theme changes.
-func helpTitle() string {
-	return lg.NewStyle().Foreground(styles.Current.Highlight).Render("≪ F1 »") + " help"
-}
-
 func (m *Model) View(ctx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 	if len(m.tabs) == 0 {
 		return ""
@@ -38,8 +37,6 @@ func (m *Model) View(ctx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		var tab string
 		if i == m.activeTab {
 			tab = styles.Tab.Active.Render(t.Title)
-		} else if m.lastTab(i) {
-			tab = styles.Tab.Help.Render(helpTitle())
 		} else {
 			tab = styles.Tab.Tab.Render(t.Title)
 		}
@@ -55,24 +52,19 @@ func (m *Model) View(ctx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 	return renderer.Render(s)
 }
 
-func (m *Model) lastTab(i int) bool {
-	return i == len(m.tabs)-1
-}
-
 func (m *Model) Update(msg tea.Msg) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+left", "ctrl+h":
+		if keymap.Matches(msg, keymap.TabsPrevious) {
 			m.Prev()
-		case "ctrl+right", "ctrl+l":
+		} else if keymap.Matches(msg, keymap.TabsNext) {
 			m.Next()
 		}
 	}
 }
 
 func (m *Model) Next() {
-	if m.activeTab < m.numberOfTabs()-2 {
+	if m.activeTab < m.numberOfTabs()-1 {
 		m.activeTab++
 	}
 }
@@ -104,6 +96,6 @@ func (m *Model) ActiveTab() Tab {
 
 func New(tabs ...Tab) Model {
 	return Model{
-		tabs: append(tabs, helpTab),
+		tabs: tabs,
 	}
 }

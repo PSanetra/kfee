@@ -2,6 +2,7 @@ package record_details_page
 
 import (
 	"kfee/config"
+	"kfee/keymap"
 	"kfee/styles"
 	"kfee/transformation"
 	"kfee/ui"
@@ -339,22 +340,23 @@ func visibleLines(text string, width, limit int) []string {
 func (e *transformEditor) Shortcuts() []statusbar.Shortcut {
 	if e.files != nil {
 		return []statusbar.Shortcut{
+			// the file picker takes enter itself, see filepicker
 			{Name: "Choose", Keybinding: "enter"},
-			{Name: "Back", Keybinding: "esc"},
+			{Name: "Back", Keybinding: keymap.Hint(transformFilesClose)},
 		}
 	}
 	if e.picker != nil {
 		return []statusbar.Shortcut{
-			{Name: "Choose", Keybinding: "enter"},
-			{Name: "Back", Keybinding: "esc"},
+			{Name: "Choose", Keybinding: keymap.Hint(transformChoose)},
+			{Name: "Back", Keybinding: keymap.Hint(transformPickerClose)},
 		}
 	}
 	return []statusbar.Shortcut{
-		{Name: "Save", Keybinding: "C-s"},
-		{Name: "Generate", Keybinding: "C-g"},
-		{Name: "Editor", Keybinding: "C-e"},
-		{Name: "Attach File", Keybinding: "C-o"},
-		{Name: "Close", Keybinding: "esc"},
+		{Name: "Save", Keybinding: keymap.Hint(transformSave)},
+		{Name: "Generate", Keybinding: keymap.Hint(transformGenerate)},
+		{Name: "Editor", Keybinding: keymap.Hint(transformExternalEditor)},
+		{Name: "Attach File", Keybinding: keymap.Hint(transformAttachFile)},
+		{Name: "Close", Keybinding: keymap.Hint(transformClose)},
 	}
 }
 

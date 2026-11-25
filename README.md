@@ -76,11 +76,25 @@ see [Configuration](#configuration).
 
 ### Navigation
 
-All tables can be navigated using vi like bindings:
-- up: `j`
-- down: `k`
-- page down: `d`
-- page up: `u`
+All tables can be navigated with these keys:
+- up: `↑`
+- down: `↓`
+- page down: `pgdown`
+- page up: `pgup`
+
+### Keymap
+
+The keys can be changed in `keymap.yaml` in `~/.config/kfee/`. Run `kfee keymap` to print all actions with their
+default keys, and copy the lines you want to change:
+
+```yaml
+# keymap.yaml
+records.decoders: [x, ctrl+s]
+table.page_down: [pgdown, ctrl+v]
+```
+
+A list replaces the default keys, and `[]` unbinds an action. kfee refuses to start with a message when the file
+is invalid, for example when a key clashes with another action of the same screen.
 
 ### Configuration
 

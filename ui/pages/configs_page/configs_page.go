@@ -3,6 +3,7 @@ package configs_page
 import (
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -116,9 +117,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
-		{"Search", "/"},
-		{"Edit", "e"},
-		{"Go Back", "esc"},
+		{"Search", keymap.Hint(actionSearch)},
+		{"Edit", keymap.Hint(actionEdit)},
+		{"Go Back", keymap.Hint(actionBack)},
 	}
 }
 
@@ -129,7 +130,7 @@ func (m *Model) Title() string {
 func New(configUpdater kadmin.ConfigUpdater, topicConfigLister kadmin.TopicConfigLister, topic string, navigator tabs.TopicsTabNavigator) (*Model, tea.Cmd) {
 	m := &Model{}
 	m.cmdBar = NewCmdBar(configUpdater, topicConfigLister, topic, navigator)
-	t := table.New(
+	t := ktable.NewTable(
 		table.WithStyles(styles.Table.Styles),
 	)
 	m.table = &t

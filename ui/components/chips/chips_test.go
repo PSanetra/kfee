@@ -25,37 +25,37 @@ func TestChips(t *testing.T) {
 		assert.Equal(t, 3, chips.selectedIdx)
 
 		t.Run("previous", func(t *testing.T) {
-			chips.Update(tests.Key('h'))
+			chips.Update(tests.Key(tea.KeyLeft))
 			chips.Update(tests.Key(tea.KeyLeft))
 
 			assert.Equal(t, 1, chips.selectedIdx)
 		})
 
 		t.Run("previous when first", func(t *testing.T) {
-			chips.Update(tests.Key('h'))
+			chips.Update(tests.Key(tea.KeyLeft))
 
 			assert.Equal(t, 0, chips.selectedIdx)
 
-			chips.Update(tests.Key('h'))
+			chips.Update(tests.Key(tea.KeyLeft))
 			chips.Update(tests.Key(tea.KeyLeft))
 
 			assert.Equal(t, 0, chips.selectedIdx)
 		})
 
 		t.Run("next", func(t *testing.T) {
-			chips.Update(tests.Key('l'))
+			chips.Update(tests.Key(tea.KeyRight))
 			chips.Update(tests.Key(tea.KeyRight))
 
 			assert.Equal(t, 2, chips.selectedIdx)
 		})
 
 		t.Run("next when last", func(t *testing.T) {
-			chips.Update(tests.Key('l'))
+			chips.Update(tests.Key(tea.KeyRight))
 			chips.Update(tests.Key(tea.KeyRight))
 
 			assert.Equal(t, 4, chips.selectedIdx)
 
-			chips.Update(tests.Key('l'))
+			chips.Update(tests.Key(tea.KeyRight))
 			chips.Update(tests.Key(tea.KeyRight))
 
 			assert.Equal(t, 4, chips.selectedIdx)

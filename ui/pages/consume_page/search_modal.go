@@ -3,6 +3,7 @@ package consume_page
 import (
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/styles"
 	"kfee/ui/components/statusbar"
 	"strings"
@@ -24,6 +25,14 @@ const (
 )
 
 const maxModalWidth = 72
+
+// Actions of the search modal, they are active while it is open.
+var (
+	searchClose       = keymap.Define("search.close", "search", "esc")
+	searchMoreOptions = keymap.Define("search.more_options", "search", "ctrl+f")
+	searchSubmit      = keymap.Define("search.submit", "search", "enter")
+	searchNextField   = keymap.Define("search.next_field", "search", "tab")
+)
 
 // searchValues holds what the user entered; the huh fields write into it.
 type searchValues struct {
@@ -209,21 +218,21 @@ type searchClosedMsg struct{}
 func (m *searchModal) Update(msg tea.Msg) tea.Cmd {
 	if key, ok := msg.(tea.KeyPressMsg); ok {
 		m.err = ""
-		switch key.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(key, searchClose):
 			return func() tea.Msg { return searchClosedMsg{} }
-		case "ctrl+f":
+		case keymap.Matches(key, searchMoreOptions):
 			m.expanded = !m.expanded
 			m.buildForm()
 			return nil
-		case "enter":
+		case keymap.Matches(key, searchSubmit):
 			details, err := m.readDetails()
 			if err != nil {
 				m.err = err.Error()
 				return nil
 			}
 			return func() tea.Msg { return searchSubmittedMsg{details} }
-		case "tab":
+		case keymap.Matches(key, searchNextField):
 			// moving past the last field would complete the form
 			if m.isLastField() {
 				return nil
@@ -407,17 +416,18 @@ func (m *searchModal) hiddenChanges() int {
 }
 
 func (m *searchModal) Shortcuts() []statusbar.Shortcut {
-	toggle := statusbar.Shortcut{Name: "More Options", Keybinding: "C-f"}
+	toggle := statusbar.Shortcut{Name: "More Options", Keybinding: keymap.Hint(searchMoreOptions)}
 	if m.expanded {
 		toggle.Name = "Fewer Options"
 	}
 	shortcuts := []statusbar.Shortcut{
-		{Name: "Search", Keybinding: "enter"},
-		{Name: "Close", Keybinding: "esc"},
+		{Name: "Search", Keybinding: keymap.Hint(searchSubmit)},
+		{Name: "Close", Keybinding: keymap.Hint(searchClose)},
 		toggle,
 	}
 	if m.expanded {
-		shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Next/Prev Field", Keybinding: "tab/S-tab"})
+		// shift+tab is handled by huh, only tab can be configured
+		shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Next/Prev Field", Keybinding: keymap.Hint(searchNextField) + "/S-tab"})
 	}
 	return shortcuts
 }

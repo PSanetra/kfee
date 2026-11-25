@@ -107,6 +107,12 @@ func ConnectionsPath() string {
 	return filepath.Join(configDir(), "connections.yaml")
 }
 
+// KeymapPath is the file with the key bindings, see the keymap package. kfee only reads it,
+// so comments in it are kept.
+func KeymapPath() string {
+	return filepath.Join(configDir(), "keymap.yaml")
+}
+
 // ThemesDir is where user themes live, one <name>.yaml per theme.
 func ThemesDir() string {
 	return filepath.Join(configDir(), "themes")

@@ -6,11 +6,11 @@ import (
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"fmt"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
 	"kfee/ui/components/statusbar"
-	"strings"
 )
 
 type DeleteMsgFn[T any] func(T) string
@@ -27,14 +27,16 @@ type DeleteCmdBar[T any] struct {
 	deleteMsgFunc DeleteMsgFn[T]
 	deleteFunc    DeleteFn[T]
 	validateFn    ValidateFn[T]
-	deleteKey     string
+	deleteAction  keymap.Action
 }
 
 type Option[T any] func(bar *DeleteCmdBar[T])
 
-func WithDeleteKey[T any](key string) Option[T] {
+// WithDeleteAction sets the action that toggles the delete bar. The caller must trigger the same action
+// to open it, so a rebinding in keymap.yaml applies to both. By default it is the table's delete action.
+func WithDeleteAction[T any](a keymap.Action) Option[T] {
 	return func(bar *DeleteCmdBar[T]) {
-		bar.deleteKey = key
+		bar.deleteAction = a
 	}
 }
 
@@ -63,10 +65,10 @@ func (s *DeleteCmdBar[any]) IsFocussed() bool {
 func (s *DeleteCmdBar[any]) Shortcuts() []statusbar.Shortcut {
 	if s.active {
 		return []statusbar.Shortcut{
-			{"Confirm", "enter"},
+			{"Confirm", keymap.Hint(actionConfirm)},
 			{"Select Cancel", "c"},
 			{"Select Delete", "d"},
-			{"Cancel", fmt.Sprintf("esc/%s", strings.ToUpper(s.deleteKey))},
+			{"Cancel", fmt.Sprintf("%s/%s", keymap.Hint(actionCancel), keymap.Hint(s.deleteAction))},
 		}
 	}
 	return nil
@@ -75,14 +77,14 @@ func (s *DeleteCmdBar[any]) Shortcuts() []statusbar.Shortcut {
 func (s *DeleteCmdBar[any]) Update(msg tea.Msg) (bool, tea.Msg, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case s.deleteKey:
+		switch {
+		case keymap.Matches(msg, s.deleteAction):
 			s.active = !s.active
 			return s.active, nil, nil
-		case "esc":
+		case keymap.Matches(msg, actionCancel):
 			s.active = false
 			return s.active, nil, nil
-		case "enter":
+		case keymap.Matches(msg, actionConfirm):
 			if s.validateFn != nil {
 				valid, cmd := s.validateFn(s.deleteValue)
 				if !valid {
@@ -142,7 +144,7 @@ func NewDeleteCmdBar[T any](
 		deleteFunc:    deleteFunc,
 		deleteMsgFunc: deleteMsgFunc,
 		deleteConfirm: newDeleteConfirm(),
-		deleteKey:     "f2",
+		deleteAction:  actionDelete,
 	}
 
 	for _, o := range options {

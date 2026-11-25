@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"kfee/config"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/sradmin"
 	"kfee/ui"
@@ -14,6 +15,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+)
+
+var (
+	actionBack   = keymap.Define("clusters.back", "clusters", "esc")
+	actionCreate = keymap.Define("clusters.create", "clusters", "ctrl+n")
+	actionEdit   = keymap.Define("clusters.edit", "clusters", "ctrl+e")
 )
 
 type state int
@@ -51,13 +58,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, actionBack):
 			if m.escGoesBack {
 				return m.active.Update(msg)
 			}
 			return nil
-		case "ctrl+n":
+		case keymap.Matches(msg, actionCreate):
 			if _, ok := m.active.(*clusters_page.Model); ok {
 				m.active = create_cluster_page.NewCreateClusterPage(
 					m,
@@ -75,7 +82,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					kadmin.CertValidator,
 				)
 			}
-		case "ctrl+e":
+		case keymap.Matches(msg, actionEdit):
 			if clustersPage, ok := m.active.(*clusters_page.Model); ok {
 				clusterName := clustersPage.SelectedCluster()
 				selectedCluster := m.ktx.Config().FindClusterByName(*clusterName)

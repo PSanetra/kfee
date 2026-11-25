@@ -8,6 +8,7 @@ import (
 	"charm.land/log/v2"
 	"kfee/config"
 	"kfee/kcadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -17,6 +18,12 @@ import (
 	ktable "kfee/ui/components/table"
 	"kfee/ui/tabs"
 	"reflect"
+)
+
+var (
+	actionEdit   = keymap.Define("upsert_kcon.edit", "upsert_cluster", "ctrl+e")
+	actionNew    = keymap.Define("upsert_kcon.new", "upsert_cluster", "ctrl+n")
+	actionDelete = keymap.Define("upsert_kcon.delete", "upsert_cluster", "f2")
 )
 
 type UpsertKcModel struct {
@@ -89,8 +96,8 @@ func (m *UpsertKcModel) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, actionBack):
 			if m.state == entering {
 				if len(m.connectClusters) > 0 {
 					m.state = listing
@@ -99,16 +106,16 @@ func (m *UpsertKcModel) Update(msg tea.Msg) tea.Cmd {
 				m.navigator.ToClustersPage()
 			}
 			return nil
-		case "f2":
+		case keymap.Matches(msg, actionDelete):
 			clusterName := m.table.SelectedRow()[0]
 			m.deleteCmdbar.Delete(clusterName)
 			_, _, cmd := m.deleteCmdbar.Update(msg)
 			return cmd
-		case "ctrl+n":
+		case keymap.Matches(msg, actionNew):
 			m.state = entering
 			m.resetFormValues()
 			m.form = m.createKcForm()
-		case "ctrl+e":
+		case keymap.Matches(msg, actionEdit):
 			if m.state == entering {
 				break
 			}
@@ -240,10 +247,10 @@ func (m *UpsertKcModel) clusterDetails() []config.KafkaConnectClusterDetails {
 
 func (m *UpsertKcModel) Shortcuts() []statusbar.Shortcut {
 	return []statusbar.Shortcut{
-		{"Go back", "esc"},
-		{"Edit Connect Cluster", "C-e"},
-		{"New Connect Cluster", "C+n"},
-		{"Delete Connect Cluster", "F2"},
+		{"Go back", keymap.Hint(actionBack)},
+		{"Edit Connect Cluster", keymap.Hint(actionEdit)},
+		{"New Connect Cluster", keymap.Hint(actionNew)},
+		{"Delete Connect Cluster", keymap.Hint(actionDelete)},
 	}
 }
 

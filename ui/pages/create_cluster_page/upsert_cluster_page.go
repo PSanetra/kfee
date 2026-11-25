@@ -6,6 +6,7 @@ import (
 	"kfee/config"
 	"kfee/kadmin"
 	"kfee/kcadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/sradmin"
 	"kfee/styles"
@@ -22,6 +23,15 @@ import (
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
+)
+
+// actionBack is shared with the Kafka Connect tab (upsert_kcon.go), which both receive esc.
+var (
+	actionBack            = keymap.Define("upsert_cluster.back", "upsert_cluster", "esc")
+	actionReset           = keymap.Define("upsert_cluster.reset", "upsert_cluster", "ctrl+r")
+	actionClusterTab      = keymap.Define("upsert_cluster.tab_cluster", "upsert_cluster", "f4")
+	actionRegistryTab     = keymap.Define("upsert_cluster.tab_registry", "upsert_cluster", "f5")
+	actionKafkaConnectTab = keymap.Define("upsert_cluster.tab_kafka_connect", "upsert_cluster", "f6")
 )
 
 type authSelection int
@@ -174,14 +184,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case keymap.Matches(msg, actionBack):
 			if activeTab == kcTab {
 				return m.kcModel.Update(msg)
 			}
 			m.title = "Clusters"
 			return m.navigator.ToClustersPage()
-		case "ctrl+r":
+		case keymap.Matches(msg, actionReset):
 			m.cFormValues = &clusterFormValues{}
 			if activeTab == cTab {
 				m.authSelState = authMethodNone
@@ -193,11 +203,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.srForm = m.createSrForm()
 				m.form = m.srForm
 			}
-		case "f4":
+		case keymap.Matches(msg, actionClusterTab):
 			m.form = m.cForm
 			m.border.GoTo("f4")
 			return nil
-		case "f5":
+		case keymap.Matches(msg, actionRegistryTab):
 			if m.clusterSaved {
 				m.form = m.srForm
 				m.form.State = huh.StateNormal
@@ -209,7 +219,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.notifierCmdBar.Notifier.ShowError(fmt.Errorf("create a cluster before adding a schema registry")),
 				m.notifierCmdBar.Notifier.AutoHideCmd(notifierCmdbarTag),
 			)
-		case "f6":
+		case keymap.Matches(msg, actionKafkaConnectTab):
 			if m.inEditingMode() {
 				m.form.State = huh.StateNormal
 				m.border.GoTo("f6")
@@ -776,9 +786,9 @@ func initBorder(options ...border.Option) *border.Model {
 	return border.New(
 		append([]border.Option{
 			border.WithTabs(
-				border.Tab{Title: "Cluster ≪ F4 »", TabLabel: cTab},
-				border.Tab{Title: "Schema Registry ≪ F5 »", TabLabel: srTab},
-				border.Tab{Title: "Kafka Connect ≪ F6 »", TabLabel: kcTab},
+				border.Tab{Title: "Cluster ≪ " + keymap.Hint(actionClusterTab) + " »", TabLabel: cTab},
+				border.Tab{Title: "Schema Registry ≪ " + keymap.Hint(actionRegistryTab) + " »", TabLabel: srTab},
+				border.Tab{Title: "Kafka Connect ≪ " + keymap.Hint(actionKafkaConnectTab) + " »", TabLabel: kcTab},
 			),
 		}, options...)...)
 }
@@ -908,8 +918,8 @@ func NewEditClusterPage(
 			{"Confirm", "enter"},
 			{"Next Field", "tab"},
 			{"Prev. Field", "s-tab"},
-			{"Reset Form", "C-r"},
-			{"Go Back", "esc"},
+			{"Reset Form", keymap.Hint(actionReset)},
+			{"Go Back", keymap.Hint(actionBack)},
 		},
 		validateCert: certValidator,
 		clusterSaved: true,

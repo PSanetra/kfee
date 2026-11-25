@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -27,6 +28,17 @@ import (
 )
 
 const name = "topics-page"
+
+var (
+	actionConsumeQuick   = keymap.Define("topics.consume_quick", "topics", "enter")
+	actionConsumeSearch  = keymap.Define("topics.consume_search", "topics", "ctrl+f")
+	actionConsumeLive    = keymap.Define("topics.consume_live", "topics", "L")
+	actionCreate         = keymap.Define("topics.create", "topics", "ctrl+n")
+	actionConfigs        = keymap.Define("topics.configs", "topics", "ctrl+o")
+	actionProduce        = keymap.Define("topics.produce", "topics", "ctrl+p")
+	actionToggleInternal = keymap.Define("topics.toggle_internal", "topics", "f4")
+	actionRefresh        = keymap.Define("topics.refresh", "topics", "f5")
+)
 
 type state int
 
@@ -94,29 +106,29 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+n":
+		switch {
+		case keymap.Matches(msg, actionCreate):
 			return m.navigator.ToCreateTopicPage()
-		case "ctrl+o":
+		case keymap.Matches(msg, actionConfigs):
 			topic := m.SelectedTopic()
 			if topic == nil {
 				return nil
 			}
 			return m.navigator.ToTopicConfigPage(topic.Name)
-		case "ctrl+p":
+		case keymap.Matches(msg, actionProduce):
 			if m.SelectedTopic() == nil {
 				return nil
 			}
 			return m.navigator.ToPublishPage(m.SelectedTopic())
-		case "f5":
+		case keymap.Matches(msg, actionRefresh):
 			m.topics = nil
 			m.state = stateRefreshing
 			return m.lister.ListTopics
-		case "f4":
+		case keymap.Matches(msg, actionToggleInternal):
 			m.showInternalTopics = !m.showInternalTopics
 			m.rows = m.createRows()
 			return nil
-		case "L":
+		case keymap.Matches(msg, actionConsumeLive):
 			if m.SelectedTopic() == nil {
 				return nil
 			}
@@ -130,7 +142,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					Limit:           kadmin.DefaultLimit,
 				},
 			})
-		case "ctrl+f":
+		case keymap.Matches(msg, actionConsumeSearch):
 			// only accept enter when the table is focussed
 			if !m.tcb.IsFocussed() {
 				if m.SelectedTopic() != nil {
@@ -141,7 +153,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					})
 				}
 			}
-		case "enter":
+		case keymap.Matches(msg, actionConsumeQuick):
 			// only accept enter when the table is focussed
 			if !m.tcb.IsFocussed() {
 				if m.SelectedTopic() != nil {
@@ -306,17 +318,17 @@ func New(
 	var m = Model{}
 	m.navigator = navigator
 	m.shortcuts = []statusbar.Shortcut{
-		{"Quick Consume", "enter"},
-		{"Advanced Search", "C-f"},
+		{"Quick Consume", keymap.Hint(actionConsumeQuick)},
+		{"Advanced Search", keymap.Hint(actionConsumeSearch)},
 		{"Live Consume", "S-l"},
 		{"Search", "/"},
-		{"Produce", "C-p"},
-		{"Create", "C-n"},
-		{"Configs", "C-o"},
+		{"Produce", keymap.Hint(actionProduce)},
+		{"Create", keymap.Hint(actionCreate)},
+		{"Configs", keymap.Hint(actionConfigs)},
 		{"Delete", "F2"},
 		{"Sort", "F3"},
-		{"Toggle Internal Topics", "F4"},
-		{"Refresh", "F5"},
+		{"Toggle Internal Topics", keymap.Hint(actionToggleInternal)},
+		{"Refresh", keymap.Hint(actionRefresh)},
 	}
 
 	m.table = ktable.NewDefaultTable()

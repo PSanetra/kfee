@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"kfee/kadmin"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/serdes"
 	"kfee/styles"
@@ -176,24 +177,24 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if msg.String() == "esc" {
 			m.cancelConsumption()
 			return m.navigator.ToTopicsPage(false)
-		} else if (msg.String() == "/" || msg.String() == "ctrl+f") && !m.cmdBar.IsFocussed() {
-			m.search = newSearchModal(m.topic, m.readDetails, msg.String() == "ctrl+f")
+		} else if (keymap.Matches(msg, keymap.RecordsSearch) || keymap.Matches(msg, keymap.RecordsSearchExtended)) && !m.cmdBar.IsFocussed() {
+			m.search = newSearchModal(m.topic, m.readDetails, keymap.Matches(msg, keymap.RecordsSearchExtended))
 			return nil
-		} else if msg.String() == "d" && !m.cmdBar.IsFocussed() {
+		} else if keymap.Matches(msg, keymap.RecordsDecoders) && !m.cmdBar.IsFocussed() {
 			return m.navigator.ToDecodersPage(tabs.DecodersPageDetails{Topic: m.readDetails.TopicName, AvroSchemas: m.avroSchemas()})
-		} else if msg.String() == "t" && !m.cmdBar.IsFocussed() && m.selectedRecord() != nil {
+		} else if keymap.Matches(msg, keymap.RecordsToggleOrig) && !m.cmdBar.IsFocussed() && m.selectedRecord() != nil {
 			record := m.selectedRecord()
 			m.preview.toggleOriginal(record)
 			return m.preview.request(record)
-		} else if msg.String() == "c" && m.canCopy() {
+		} else if keymap.Matches(msg, keymap.RecordsCopy) && m.canCopy() {
 			record := m.selectedRecord()
 			m.preview.copied(record, m.clipWriter.Write(m.preview.copyable(record)))
 			return nil
-		} else if msg.String() == "f2" {
+		} else if keymap.Matches(msg, keymap.RecordsEndConsume) {
 			m.cancelConsumption()
 			m.consuming = false
 			cmds = append(cmds, ui.PublishMsg(kadmin.ConsumptionEndedMsg{}))
-		} else if msg.String() == "enter" {
+		} else if keymap.Matches(msg, keymap.RecordsOpen) {
 			if !m.cmdBar.IsFocussed() {
 				if len(m.records) > 0 {
 					selectedRow := m.rows[m.table.Cursor()]
@@ -409,7 +410,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 	if m.search != nil || m.cmdBar.IsFocussed() {
 		return shortcuts
 	}
-	shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Decoders", Keybinding: "d"})
+	shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Decoders", Keybinding: keymap.Hint(keymap.RecordsDecoders)})
 	return shortcuts
 }
 
@@ -454,12 +455,12 @@ func (m *Model) withCopyShortcut(shortcuts []statusbar.Shortcut) []statusbar.Sho
 		if m.preview.showOriginal {
 			name = "Show Original"
 		}
-		shortcuts = append(shortcuts, statusbar.Shortcut{Name: name, Keybinding: "t"})
+		shortcuts = append(shortcuts, statusbar.Shortcut{Name: name, Keybinding: keymap.Hint(keymap.RecordsToggleOrig)})
 	}
 	if !m.canCopy() {
 		return shortcuts
 	}
-	return append(shortcuts[:1:1], append([]statusbar.Shortcut{{Name: "Copy Record", Keybinding: "c"}}, shortcuts[1:]...)...)
+	return append(shortcuts[:1:1], append([]statusbar.Shortcut{{Name: "Copy Record", Keybinding: keymap.Hint(keymap.RecordsCopy)}}, shortcuts[1:]...)...)
 }
 
 // avroSchemas are the Avro decoder IDs of the loaded records with the schema of their records.
@@ -498,7 +499,7 @@ func New(
 ) (pages.Page, tea.Cmd) {
 	m := &Model{}
 
-	t := table.New(
+	t := ktable.NewTable(
 		table.WithFocused(true),
 		table.WithStyles(styles.Table.Styles),
 	)

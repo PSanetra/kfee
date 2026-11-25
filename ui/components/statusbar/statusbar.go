@@ -3,6 +3,7 @@ package statusbar
 import (
 	lg "charm.land/lipgloss/v2"
 	"image/color"
+	"kfee/keymap"
 	"kfee/kontext"
 	"kfee/styles"
 	"kfee/ui"
@@ -88,13 +89,13 @@ func renderText(text string, fg color.Color) string {
 		Render(text)
 }
 
-// Shortcuts returns the global shortcuts followed by those of the active provider.
+// Shortcuts returns the shortcuts of the active provider followed by the global shortcuts.
 func (m *Model) Shortcuts() []Shortcut {
-	shortcuts := []Shortcut{{Name: "Switch Tabs", Keybinding: "C-←/→/h/l"}}
+	var shortcuts []Shortcut
 	if m.provider != nil {
 		shortcuts = append(shortcuts, m.provider.Shortcuts()...)
 	}
-	return shortcuts
+	return append(shortcuts, Shortcut{Name: "Switch Tabs", Keybinding: keymap.Hint(keymap.TabsPrevious) + "/" + keymap.Hint(keymap.TabsNext)})
 }
 
 func (m *Model) Title() string {

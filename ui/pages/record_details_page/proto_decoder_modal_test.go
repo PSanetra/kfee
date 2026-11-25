@@ -332,7 +332,7 @@ func TestRecordDetailsPageProtobuf(t *testing.T) {
 
 	t.Run("p preselects the highlighted header", func(t *testing.T) {
 		m, _ := newPage(t)
-		m.Update(tests.Key('h'))
+		m.Update(tests.Key(tea.KeyLeft))
 		m.Update(tests.Key(tea.KeyDown))
 
 		m.Update(tests.Key('p'))
