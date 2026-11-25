@@ -37,7 +37,11 @@ type ConsumePageDetails struct {
 type DecodersPageDetails struct {
 	// AvroSchemas are the Avro decoder IDs seen on the loaded records of the topic, with their schema
 	AvroSchemas map[string]string
-	Topic       string
+	// Back returns to the page that opened the decoders. Nil returns to the consumption page.
+	Back func() tea.Cmd
+	// Decoder, when set, shows only this decoder in its detail view, see decoders_page.ShowOnly.
+	Decoder string
+	Topic   string
 }
 
 type RecordDetailsPageDetails struct {

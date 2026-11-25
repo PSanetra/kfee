@@ -92,7 +92,7 @@ func TestDecodersPage(t *testing.T) {
 		render := ansi.Strip(m.View(ktx, tests.Renderer))
 
 		assert.Contains(t, render, `"Order"`)
-		assert.Contains(t, render, "Avro schema of orders-value")
+		assert.Contains(t, render, "Transformations")
 	})
 
 	t.Run("esc returns to the decoder list, then to the records", func(t *testing.T) {

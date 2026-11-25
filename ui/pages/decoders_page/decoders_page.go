@@ -78,6 +78,10 @@ type Model struct {
 	// entry is the position in the history of the selected decoder, oldest first
 	entry     int
 	navigator tabs.TopicsTabNavigator
+	// back returns to the page that opened the decoders, nil returns to the consumption page
+	back func() tea.Cmd
+	// single is set when only one decoder is shown, its detail view; back leaves the decoders then
+	single bool
 	// clipWriter copies the schema of the selected decoder
 	clipWriter     clipper.Writer
 	notifierCmdbar *cmdbar.NotifierCmdBar
@@ -202,13 +206,14 @@ func (m *Model) detailView(ktx *kontext.ProgramKtx) string {
 	schemaBorder.Focused = m.focusSchema
 
 	transformationsBorder := border.New(border.WithTitleFn(func() string {
-		return border.Title("Transformations · "+m.selected().describe(), false)
+		return border.Title("Transformations", false)
 	}))
 	transformationsBorder.Focused = !m.focusSchema
 
 	left := lg.NewStyle().Width(leftWidth).Render(schemaBorder.View(m.schemaVp.View()))
-	right := lg.NewStyle().Width(rightWidth).MaxHeight(height).Render(
-		transformationsBorder.View(lg.NewStyle().Width(rightWidth - 2).Render(m.detailText())),
+	// the box always spans the full height, with or without transformations
+	right := lg.NewStyle().Width(rightWidth).Render(
+		transformationsBorder.View(lg.NewStyle().Width(rightWidth - 2).Height(height - 2).MaxHeight(height - 2).Render(m.detailText())),
 	)
 	return lg.JoinHorizontal(lg.Top, left, right)
 }
@@ -228,7 +233,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		}
 		switch {
 		case keymap.Matches(key, decodersBack):
-			return m.navigator.ToCachedConsumptionPage()
+			return m.goBack()
 		case keymap.Matches(key, decodersShow):
 			if len(m.decoders) > 0 {
 				m.openDetail()
@@ -256,6 +261,9 @@ func (m *Model) openDetail() {
 func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keymap.Matches(key, decodersCloseDetail):
+		if m.single {
+			return m.goBack()
+		}
 		m.detail = false
 		return nil
 	case keymap.Matches(key, decodersToggleFocus):
@@ -321,6 +329,33 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Copy Schema", Keybinding: keymap.Hint(decodersCopy)})
 	}
 	return append(shortcuts, statusbar.Shortcut{Name: "Go Back", Keybinding: keymap.Hint(decodersBack)})
+}
+
+// SetBack sets where Back returns to, see Model.back.
+func (m *Model) SetBack(back func() tea.Cmd) {
+	m.back = back
+}
+
+// ShowOnly shows just the decoder with the given ID, in its detail view, and the list is not shown.
+// Back from it returns to the page that opened the decoders. It reports false, and changes nothing,
+// when the topic has no such decoder.
+func (m *Model) ShowOnly(id string) bool {
+	i := slices.IndexFunc(m.decoders, func(d decoder) bool { return d.id == id })
+	if i < 0 {
+		return false
+	}
+	m.table.SetCursor(i)
+	m.single = true
+	m.openDetail()
+	return true
+}
+
+// goBack returns to the page that opened the decoders, or to the consumption page.
+func (m *Model) goBack() tea.Cmd {
+	if m.back != nil {
+		return m.back()
+	}
+	return m.navigator.ToCachedConsumptionPage()
 }
 
 func (m *Model) Title() string {

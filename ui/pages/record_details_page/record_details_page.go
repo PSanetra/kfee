@@ -38,6 +38,7 @@ var (
 	detailsBack         = keymap.Define("details.back", "details", "esc")
 	detailsToggleFocus  = keymap.Define("details.toggle_focus", "details", "left", "right")
 	detailsProtobuf     = keymap.Define("details.protobuf", "details", "p")
+	detailsDecoders     = keymap.Define("details.decoders", "details", "d")
 	detailsToggleOrig   = keymap.Define("details.toggle_original", "details", "t")
 	detailsToggleSchema = keymap.Define("details.toggle_schema", "details", "tab")
 )
@@ -202,6 +203,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.navigator.ToCachedConsumptionPage()
 		case keymap.Matches(msg, detailsProtobuf) && !m.isAvro():
 			m.openProtoModal()
+		case keymap.Matches(msg, detailsDecoders) && m.record.Payload.RuleID != "":
+			return m.openDecoders()
 		case keymap.Matches(msg, detailsNextRecord):
 			cmds = m.handleNavigateToNext(cmds)
 		case keymap.Matches(msg, detailsPrevRecord):
@@ -528,6 +531,28 @@ func (m *Model) isAvro() bool {
 	return strings.HasPrefix(m.record.Payload.RuleID, "avro:")
 }
 
+// openDecoders shows the decoders of the topic, with the schema of this record if it is Avro. Back
+// returns to this record.
+func (m *Model) openDecoders() tea.Cmd {
+	schemas := map[string]string{}
+	if m.isAvro() {
+		schemas[m.record.Payload.RuleID] = m.record.Payload.Schema
+	}
+	return m.navigator.ToDecodersPage(tabs.DecodersPageDetails{
+		Topic:       m.topicName,
+		AvroSchemas: schemas,
+		Decoder:     m.record.Payload.RuleID,
+		Back: func() tea.Cmd {
+			return m.navigator.ToRecordDetailsPage(tabs.RecordDetailsPageDetails{
+				Record:    m.record,
+				TopicName: m.topicName,
+				Records:   m.records,
+				Index:     m.recordIndex,
+			})
+		},
+	})
+}
+
 func (m *Model) Shortcuts() []statusbar.Shortcut {
 	if m.transformEditor != nil {
 		return m.transformEditor.Shortcuts()
@@ -554,6 +579,10 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 		}
 		if !m.isAvro() {
 			shortcuts = append(shortcuts, protoShortcut)
+		}
+
+		if m.record.Payload.RuleID != "" {
+			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Decoder", Keybinding: keymap.Hint(detailsDecoders)})
 		}
 
 		if m.record.Payload.RuleID != "" {
