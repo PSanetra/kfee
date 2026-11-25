@@ -16,6 +16,10 @@ type MockPublisher struct {
 	PublishRecordFunc func(p *kadmin.ProducerRecord) kadmin.PublicationStartedMsg
 }
 
+func (m *MockPublisher) PublishBatch(records []*kadmin.ProducerRecord) error {
+	return nil
+}
+
 func (m *MockPublisher) PublishRecord(p *kadmin.ProducerRecord) kadmin.PublicationStartedMsg {
 	if m.PublishRecordFunc != nil {
 		return m.PublishRecordFunc(p)

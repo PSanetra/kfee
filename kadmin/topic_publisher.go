@@ -1,14 +1,19 @@
 package kadmin
 
 import (
+	"errors"
+	"sync"
+	"time"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/IBM/sarama"
 	"github.com/burdiyan/kafkautil"
-	"time"
 )
 
 type Publisher interface {
 	PublishRecord(p *ProducerRecord) PublicationStartedMsg
+	// PublishBatch publishes the records without waiting for each acknowledgement, see SaramaKafkaAdmin.
+	PublishBatch(records []*ProducerRecord) error
 }
 
 type ProducerRecord struct {
@@ -51,6 +56,57 @@ func (ka *SaramaKafkaAdmin) PublishRecord(p *ProducerRecord) PublicationStartedM
 		Err:       errChan,
 		Published: published,
 	}
+}
+
+// PublishBatch queues all records on an async producer, so the sends overlap instead of waiting for
+// each acknowledgement. It returns when every record is acknowledged, or with the errors of the records
+// that failed. The records must not set a partition, they are partitioned like PublishRecord does.
+func (ka *SaramaKafkaAdmin) PublishBatch(records []*ProducerRecord) error {
+	MaybeIntroduceLatency()
+	ka.config.Producer.Partitioner = kafkautil.NewJVMCompatiblePartitioner
+
+	producer, err := sarama.NewAsyncProducerFromClient(ka.client)
+	if err != nil {
+		return err
+	}
+
+	// the sync producer of the admin requires the successes, the async producer returns them too
+	var wg sync.WaitGroup
+	var errs []error
+	wg.Go(func() {
+		for range producer.Successes() {
+		}
+	})
+	wg.Go(func() {
+		for e := range producer.Errors() {
+			errs = append(errs, e)
+		}
+	})
+
+	for _, p := range records {
+		producer.Input() <- &sarama.ProducerMessage{
+			Topic:     p.Topic,
+			Key:       sarama.StringEncoder(p.Key),
+			Value:     sarama.ByteEncoder(p.Value),
+			Headers:   recordHeaders(p.Headers),
+			Timestamp: p.Timestamp,
+		}
+	}
+	producer.AsyncClose()
+	wg.Wait()
+
+	return errors.Join(errs...)
+}
+
+func recordHeaders(headers map[string]string) []sarama.RecordHeader {
+	var out []sarama.RecordHeader
+	for key, value := range headers {
+		out = append(out, sarama.RecordHeader{
+			Key:   []byte(key),
+			Value: []byte(value),
+		})
+	}
+	return out
 }
 
 func (ka *SaramaKafkaAdmin) doPublishRecord(
