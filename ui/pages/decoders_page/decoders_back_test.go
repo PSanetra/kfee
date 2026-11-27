@@ -127,3 +127,25 @@ func fitLinesBeyond(text string, width int) []string {
 	}
 	return wide
 }
+
+func TestShowOnlyOpensTheRequestedDecoder(t *testing.T) {
+	schema := `{"type":"record","name":"Order","fields":[{"name":"id","type":"string"}]}`
+	m := New("orders", &config.Config{}, nil, nil, tabs.NewMockTopicsTabNavigator(),
+		map[string]string{"avro:a-value": schema, "avro:b-value": schema}, clipper.NewMock())
+
+	require.True(t, m.ShowOnly("avro:b-value"))
+
+	assert.Equal(t, "avro:b-value", m.shown.id)
+}
+
+func TestDetailViewIsIndependentOfTheListCursor(t *testing.T) {
+	schema := `{"type":"record","name":"Order","fields":[{"name":"id","type":"string"}]}`
+	m := New("orders", &config.Config{}, nil, nil, tabs.NewMockTopicsTabNavigator(),
+		map[string]string{"avro:a-value": schema, "avro:b-value": schema}, clipper.NewMock())
+	require.True(t, m.ShowOnly("avro:b-value"))
+
+	m.table.SetCursor(0)
+
+	assert.Equal(t, "avro:b-value", m.shown.id)
+	assert.Contains(t, m.detailText(), "id avro:b-value")
+}
