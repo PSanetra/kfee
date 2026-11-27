@@ -80,7 +80,10 @@ type Model struct {
 	detail      bool
 	// focusSchema is set while the schema is focused, otherwise the transformations are
 	focusSchema bool
-	// schemaVp shows the schema of the selected decoder, scrollable
+	// shown is the decoder of the detail view. It is kept apart from the list cursor, so the detail
+	// view does not change when the list is moved.
+	shown decoder
+	// schemaVp shows the schema of the shown decoder, scrollable
 	schemaVp *viewport.Model
 	// entry is the position in the history of the selected decoder, oldest first
 	entry     int
@@ -187,16 +190,7 @@ func (m *Model) body(ktx *kontext.ProgramKtx, renderer *ui.Renderer) string {
 		{Title: "Decodes as", Width: width * 30 / 100},
 		{Title: "Latest transformation", Width: max(width-3-width*35/100-width*30/100, 10)},
 	})
-	var rows []table.Row
-	for i, d := range m.decoders {
-		rows = append(rows, table.Row{
-			fmt.Sprint(i + 1),
-			d.match,
-			d.decodes,
-			m.latest(d),
-		})
-	}
-	m.table.SetRows(rows)
+	m.table.SetRows(m.rows())
 	m.table.SetHeight(ktx.AvailableHeight - 2)
 	return renderer.Render(b.View(ktable.View(&m.table)))
 }
@@ -237,7 +231,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) update(msg tea.Msg) tea.Cmd {
 	if key, ok := msg.(tea.KeyPressMsg); ok {
 		if keymap.Matches(key, decodersCopy) && len(m.decoders) > 0 {
-			return m.copySchema()
+			if m.detail {
+				return m.copySchema(m.shown)
+			}
+			return m.copySchema(m.selected())
 		}
 		if m.detail {
 			return m.updateDetail(key)
@@ -247,7 +244,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 			return m.goBack()
 		case keymap.Matches(key, decodersShow):
 			if len(m.decoders) > 0 {
-				m.openDetail()
+				m.openDetail(m.selected())
 			}
 			return nil
 		}
@@ -257,20 +254,21 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// openDetail shows the selected decoder, its schema is focused and starts at the top.
-func (m *Model) openDetail() {
+// openDetail shows the decoder d, its schema is focused and starts at the top.
+func (m *Model) openDetail(d decoder) {
 	m.detail = true
+	m.shown = d
 	m.focusSchema = true
-	m.entry = max(len(m.history[m.selected().id])-1, 0)
+	m.entry = max(len(m.history[d.id])-1, 0)
 	vp := viewport.New(viewport.WithWidth(1), viewport.WithHeight(1))
-	vp.SetContent(m.selected().schema)
+	vp.SetContent(d.schema)
 	m.schemaVp = &vp
 }
 
 // openFilter shows the transformation under the cursor in $EDITOR, pretty printed. Changes made in the
 // editor are not saved: the transformations are only changed by activating one.
 func (m *Model) openFilter() tea.Cmd {
-	history := m.history[m.selected().id]
+	history := m.history[m.shown.id]
 	if m.focusSchema || len(history) == 0 {
 		return nil
 	}
@@ -309,7 +307,7 @@ func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 
-	history := m.history[m.selected().id]
+	history := m.history[m.shown.id]
 	switch {
 	case keymap.Matches(key, keymap.TableUp):
 		// the newest entry is drawn at the top, so up goes to the next newer entry
@@ -324,7 +322,7 @@ func (m *Model) updateDetail(key tea.KeyPressMsg) tea.Cmd {
 
 // activate removes the selected entry from its position and appends it again with the current time.
 func (m *Model) activate() {
-	d := m.selected()
+	d := m.shown
 	if len(m.history[d.id]) == 0 {
 		return
 	}
@@ -351,7 +349,7 @@ func (m *Model) Shortcuts() []statusbar.Shortcut {
 				statusbar.Shortcut{Name: "Activate", Keybinding: keymap.Hint(decodersActivate)},
 			)
 		}
-		if !m.focusSchema && len(m.history[m.selected().id]) > 0 {
+		if !m.focusSchema && len(m.history[m.shown.id]) > 0 {
 			shortcuts = append(shortcuts, statusbar.Shortcut{Name: "Open in Editor", Keybinding: keymap.Hint(decodersOpenFilter)})
 		}
 		return append(shortcuts,
@@ -379,9 +377,8 @@ func (m *Model) ShowOnly(id string) bool {
 	if i < 0 {
 		return false
 	}
-	m.table.SetCursor(i)
 	m.single = true
-	m.openDetail()
+	m.openDetail(m.decoders[i])
 	return true
 }
 
@@ -397,15 +394,29 @@ func (m *Model) Title() string {
 	return "Topics / " + m.topic + " / Decoders"
 }
 
+// rows are the table rows of the decoders, in their order.
+func (m *Model) rows() []table.Row {
+	rows := make([]table.Row, 0, len(m.decoders))
+	for i, d := range m.decoders {
+		rows = append(rows, table.Row{
+			fmt.Sprint(i + 1),
+			d.match,
+			d.decodes,
+			m.latest(d),
+		})
+	}
+	return rows
+}
+
 // selected is the decoder under the cursor.
 func (m *Model) selected() decoder {
 	i := min(max(m.table.Cursor(), 0), len(m.decoders)-1)
 	return m.decoders[i]
 }
 
-// copySchema copies the schema of the decoder under the cursor, as shown.
-func (m *Model) copySchema() tea.Cmd {
-	if err := m.clipWriter.Write(ansi.Strip(m.selected().schema)); err != nil {
+// copySchema copies the schema of the decoder d, as shown.
+func (m *Model) copySchema(d decoder) tea.Cmd {
+	if err := m.clipWriter.Write(ansi.Strip(d.schema)); err != nil {
 		return ui.PublishMsg(CopyErrorMsg{Err: err})
 	}
 	return ui.PublishMsg(SchemaCopiedMsg{})
@@ -425,7 +436,7 @@ func (m *Model) latest(d decoder) string {
 // detailText lists the transformations of the selected decoder, the latest one first. The entry
 // under the cursor is marked with >, the latest one with ▶.
 func (m *Model) detailText() string {
-	d := m.selected()
+	d := m.shown
 	history := m.history[d.id]
 	lines := []string{styles.Help.Footer.Render("id " + d.id), ""}
 	if len(history) == 0 {

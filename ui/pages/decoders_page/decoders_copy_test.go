@@ -52,7 +52,7 @@ func TestDecodersPageCopiesTheSchema(t *testing.T) {
 		clip := &clipper.MockClipper{WriteFunc: func(string) error { return errors.New("no clipboard") }}
 		m := New("orders", cfg, nil, nil, tabs.NewMockTopicsTabNavigator(), map[string]string{"avro:orders-value": schema}, clip)
 
-		msg := m.copySchema()()
+		msg := m.copySchema(m.selected())()
 
 		copyErr, ok := msg.(CopyErrorMsg)
 		require.True(t, ok, "got %T", msg)
